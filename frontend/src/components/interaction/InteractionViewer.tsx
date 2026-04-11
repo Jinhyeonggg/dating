@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { subscribeInteractionEvents, type ConnectionStatus } from '@/lib/supabase/realtime'
 import { MessageBubble } from './MessageBubble'
 import { TypingIndicator } from './TypingIndicator'
@@ -100,12 +100,9 @@ export function InteractionViewer({ interaction, initialEvents, participants }: 
     cloneId === leftClone.id ? 'left' : 'right'
 
   const maxTurns = interaction.max_turns
-  const nextSpeaker = useMemo(() => {
-    if (status !== 'running') return null
-    const nextTurn = events.length
-    if (nextTurn >= maxTurns) return null
-    return participants[nextTurn % participants.length]
-  }, [events.length, maxTurns, participants, status])
+  // 다음 발화자는 엔진이 결정함. 향후 연속 발화(같은 사람이 여러 턴) 도 지원할 수 있으므로
+  // 뷰어가 예측하지 않고, 단순히 "대화 생성 중" 인디케이터만 중앙에 표시한다.
+  const isWaitingForNextTurn = status === 'running' && events.length < maxTurns
 
   return (
     <div className="space-y-4">
@@ -144,12 +141,7 @@ export function InteractionViewer({ interaction, initialEvents, participants }: 
             />
           )
         })}
-        {nextSpeaker && (
-          <TypingIndicator
-            speakerName={nextSpeaker.name}
-            side={sideOf(nextSpeaker.id)}
-          />
-        )}
+        {isWaitingForNextTurn && <TypingIndicator side="center" />}
       </div>
 
       {status === 'completed' && (
