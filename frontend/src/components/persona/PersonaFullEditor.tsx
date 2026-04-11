@@ -31,7 +31,7 @@ export function PersonaFullEditor({
         <Tabs
           defaultValue={PERSONA_SECTIONS[0].category}
           orientation="vertical"
-          className="grid grid-cols-[10rem_1fr] gap-6 items-start"
+          className="grid grid-cols-[10rem_minmax(0,1fr)] gap-6 items-start"
         >
           <TabsList className="h-fit">
             {PERSONA_SECTIONS.map((s) => (

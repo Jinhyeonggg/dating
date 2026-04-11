@@ -24,12 +24,24 @@ function FieldView({
   field: PersonaFieldDef
   value: unknown
 }) {
+  const isBlock = field.type === 'textarea' || field.type === 'array'
   return (
-    <div className="space-y-1">
-      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+    <div
+      className={
+        isBlock
+          ? 'space-y-1.5'
+          : 'flex flex-col gap-1 sm:flex-row sm:items-baseline sm:gap-4'
+      }
+    >
+      <dt
+        className={
+          'text-xs font-medium uppercase tracking-wide text-muted-foreground ' +
+          (isBlock ? '' : 'sm:w-32 sm:shrink-0')
+        }
+      >
         {field.label}
       </dt>
-      <dd className="text-sm leading-relaxed">
+      <dd className="min-w-0 flex-1 text-sm leading-relaxed">
         {field.type === 'array' && Array.isArray(value) ? (
           <div className="flex flex-wrap gap-1">
             {(value as string[]).map((v) => (
@@ -66,13 +78,13 @@ export function PersonaDetailView({ persona }: PersonaDetailViewProps) {
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="space-y-4">
       {filledSections.map(({ section, filledFields }) => (
-        <Card key={section.category} className="p-5">
+        <Card key={section.category} className="p-6">
           <h3 className="mb-4 border-b pb-2 text-sm font-semibold">
             {section.label}
           </h3>
-          <dl className="space-y-4">
+          <dl className="space-y-3">
             {filledFields.map((field) => (
               <FieldView
                 key={field.key as string}
