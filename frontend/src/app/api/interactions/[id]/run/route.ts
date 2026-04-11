@@ -1,0 +1,108 @@
+import { NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
+import { runInteraction } from '@/lib/interaction/engine'
+import { DEFAULT_SCENARIOS } from '@/lib/config/interaction'
+import { errors, AppError } from '@/lib/errors'
+import type { Clone, CloneMemory } from '@/types/persona'
+
+function toErrorResponse(err: unknown) {
+  if (err instanceof AppError) {
+    return NextResponse.json(
+      { error: { code: err.code, message: err.message, details: err.details } },
+      { status: err.status }
+    )
+  }
+  console.error('Unhandled error:', err)
+  return NextResponse.json(
+    { error: { code: 'INTERNAL', message: '서버 오류' } },
+    { status: 500 }
+  )
+}
+
+export const maxDuration = 300 // Vercel Fluid Compute, 기본값이 이미 300이나 명시
+
+export async function POST(
+  _request: Request,
+  ctx: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await ctx.params
+    const supabase = await createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) throw errors.unauthorized()
+
+    // interaction + participants fetch + 소유권 검증
+    const { data: interaction, error: iErr } = await supabase
+      .from('interactions')
+      .select('*')
+      .eq('id', id)
+      .single()
+    if (iErr || !interaction) throw errors.notFound('Interaction')
+    if (interaction.created_by !== user.id) throw errors.forbidden()
+
+    // 이미 running/completed/failed 인 경우 중복 실행 방지
+    if (interaction.status !== 'pending') {
+      return NextResponse.json({ ok: true, status: interaction.status })
+    }
+
+    const { data: participantRows } = await supabase
+      .from('interaction_participants')
+      .select('clone_id, clones(*)')
+      .eq('interaction_id', id)
+
+    const participants = (participantRows ?? [])
+      .map((r) => (r as unknown as { clones: Clone }).clones)
+      .filter(Boolean)
+
+    if (participants.length !== 2) throw errors.validation('참여자가 2명이어야 합니다')
+
+    // 메모리 fetch (Plan 5 전에는 비어 있음, 빈 배열로 OK)
+    const memoriesByClone = new Map<string, CloneMemory[]>()
+    for (const p of participants) memoriesByClone.set(p.id, [])
+
+    const metadata = (interaction.metadata ?? {}) as { scenarioId?: string }
+    const scenarioId = metadata.scenarioId ?? DEFAULT_SCENARIOS[0].id
+    const scenario = DEFAULT_SCENARIOS.find((s) => s.id === scenarioId) ?? DEFAULT_SCENARIOS[0]
+
+    const admin = createServiceClient()
+
+    // status running + started_at
+    await admin
+      .from('interactions')
+      .update({ status: 'running', started_at: new Date().toISOString() })
+      .eq('id', id)
+
+    const result = await runInteraction({
+      interactionId: id,
+      participants,
+      memoriesByClone,
+      scenario: {
+        id: scenario.id,
+        label: scenario.label,
+        description: scenario.description,
+      },
+      setting: interaction.setting,
+      maxTurns: interaction.max_turns,
+    })
+
+    await admin
+      .from('interactions')
+      .update({
+        status: result.status,
+        ended_at: new Date().toISOString(),
+        metadata: {
+          ...metadata,
+          ...(result.failureReason ? { failure_reason: result.failureReason } : {}),
+          turnsCompleted: result.turnsCompleted,
+        },
+      })
+      .eq('id', id)
+
+    return NextResponse.json({ ok: true, status: result.status })
+  } catch (err) {
+    return toErrorResponse(err)
+  }
+}
