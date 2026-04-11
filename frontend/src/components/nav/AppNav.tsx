@@ -2,8 +2,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { LogoutButton } from './LogoutButton'
 import { BackButton } from './BackButton'
-import { buttonVariants } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
+import { NavLinks, type NavLink } from './NavLinks'
 
 export async function AppNav() {
   const supabase = await createClient()
@@ -25,7 +24,7 @@ export async function AppNav() {
 
   const myClonesCount = myClones?.length ?? 0
 
-  const navLinks: { href: string; label: string }[] = [
+  const navLinks: NavLink[] = [
     { href: '/clones', label: 'Clones' },
     { href: '/interactions', label: 'Interactions' },
   ]
@@ -45,20 +44,7 @@ export async function AppNav() {
           <Link href="/clones" className="text-lg font-semibold">
             Digital Clone
           </Link>
-          <div className="flex items-center gap-1">
-            {navLinks.map((link) => (
-              <Link
-                key={link.label}
-                href={link.href}
-                className={cn(
-                  buttonVariants({ variant: 'ghost', size: 'sm' }),
-                  'text-sm'
-                )}
-              >
-                {link.label}
-              </Link>
-            ))}
-          </div>
+          <NavLinks links={navLinks} />
         </div>
         <div className="flex items-center gap-3">
           <span className="hidden text-xs text-muted-foreground sm:inline">
