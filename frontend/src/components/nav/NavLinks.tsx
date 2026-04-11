@@ -17,16 +17,30 @@ interface Props {
 export function NavLinks({ links }: Props) {
   const pathname = usePathname()
 
-  function isActive(href: string): boolean {
-    if (href === '/') return pathname === '/'
-    // 정확 일치 또는 하위 경로 (예: /clones, /clones/123, /clones/new 모두 /clones active)
-    return pathname === href || pathname.startsWith(`${href}/`)
+  // 가장 "구체적인" (prefix가 가장 긴) 매칭 링크 하나만 활성화.
+  // 예: /clones/abc123 → "/clones"도 "/clones/abc123"도 prefix-match 되지만
+  // 후자가 더 길어서 "내 Clone" 만 active, "Clones"는 비활성.
+  function matchLength(href: string): number {
+    if (href === '/') return pathname === '/' ? 1 : -1
+    if (pathname === href) return href.length
+    if (pathname.startsWith(`${href}/`)) return href.length
+    return -1
   }
+
+  let bestIdx = -1
+  let bestLen = -1
+  links.forEach((l, i) => {
+    const len = matchLength(l.href)
+    if (len > bestLen) {
+      bestLen = len
+      bestIdx = i
+    }
+  })
 
   return (
     <div className="flex items-center gap-1">
-      {links.map((link) => {
-        const active = isActive(link.href)
+      {links.map((link, i) => {
+        const active = i === bestIdx
         return (
           <Link
             key={link.label}
