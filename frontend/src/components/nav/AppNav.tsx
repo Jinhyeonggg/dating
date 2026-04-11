@@ -23,15 +23,17 @@ export async function AppNav() {
     .limit(2)
 
   const myClonesCount = myClones?.length ?? 0
-  const myCloneHref =
-    myClonesCount === 1 && myClones ? `/clones/${myClones[0].id}` : '/clones'
 
   const navLinks: { href: string; label: string }[] = [
     { href: '/clones', label: 'Clones' },
     { href: '/interactions', label: 'Interactions' },
   ]
-  if (myClonesCount > 0) {
-    navLinks.push({ href: myCloneHref, label: '내 Clone' })
+  // 클론이 정확히 1개일 때만 바로가기 노출 (목록은 "Clones" 가 이미 담당)
+  if (myClonesCount === 1 && myClones) {
+    navLinks.push({
+      href: `/clones/${myClones[0].id}`,
+      label: '내 Clone',
+    })
   }
 
   return (
