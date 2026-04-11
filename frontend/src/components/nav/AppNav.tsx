@@ -38,9 +38,12 @@ export async function AppNav() {
 
   return (
     <nav className="border-b bg-background">
-      <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-        <div className="flex items-center gap-3">
+      <div className="relative mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
+        {/* 뒤로가기 — flex 레이아웃 밖, 좌측 거터에 absolute 배치 (mobile에선 숨김) */}
+        <div className="absolute top-1/2 left-2 hidden -translate-x-full -translate-y-1/2 md:block">
           <BackButton />
+        </div>
+        <div className="flex items-center gap-6">
           <Link href="/clones" className="text-lg font-semibold">
             Digital Clone
           </Link>
