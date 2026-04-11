@@ -40,7 +40,7 @@ export function PersonaFullEditor({
               </TabsTrigger>
             ))}
           </TabsList>
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 min-h-[32rem]">
             {PERSONA_SECTIONS.map((s) => (
               <TabsContent key={s.category} value={s.category}>
                 <PersonaSection control={methods.control} category={s.category} />

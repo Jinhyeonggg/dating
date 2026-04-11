@@ -25,9 +25,11 @@ function FieldView({
   value: unknown
 }) {
   return (
-    <div className="grid grid-cols-[9rem_1fr] gap-2 text-sm">
-      <dt className="text-muted-foreground">{field.label}</dt>
-      <dd>
+    <div className="space-y-1">
+      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        {field.label}
+      </dt>
+      <dd className="text-sm leading-relaxed">
         {field.type === 'array' && Array.isArray(value) ? (
           <div className="flex flex-wrap gap-1">
             {(value as string[]).map((v) => (
@@ -47,33 +49,40 @@ function FieldView({
 }
 
 export function PersonaDetailView({ persona }: PersonaDetailViewProps) {
+  const filledSections = PERSONA_SECTIONS.map((section) => ({
+    section,
+    filledFields: section.fields.filter((f) => {
+      if (f.key === 'name') return false
+      return !isEmpty(persona[f.key])
+    }),
+  })).filter((s) => s.filledFields.length > 0)
+
+  if (filledSections.length === 0) {
+    return (
+      <Card className="p-6 text-center text-sm text-muted-foreground">
+        추가로 입력된 정보가 없습니다. 상세 편집에서 더 많은 필드를 채워보세요.
+      </Card>
+    )
+  }
+
   return (
-    <div className="space-y-4">
-      {PERSONA_SECTIONS.map((section) => {
-        const filledFields = section.fields.filter((f) => {
-          if (f.key === 'name') return false
-          return !isEmpty(persona[f.key])
-        })
-
-        if (filledFields.length === 0) return null
-
-        return (
-          <Card key={section.category} className="p-5">
-            <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
-              {section.label}
-            </h3>
-            <dl className="space-y-3">
-              {filledFields.map((field) => (
-                <FieldView
-                  key={field.key as string}
-                  field={field}
-                  value={persona[field.key]}
-                />
-              ))}
-            </dl>
-          </Card>
-        )
-      })}
+    <div className="grid gap-4 sm:grid-cols-2">
+      {filledSections.map(({ section, filledFields }) => (
+        <Card key={section.category} className="p-5">
+          <h3 className="mb-4 border-b pb-2 text-sm font-semibold">
+            {section.label}
+          </h3>
+          <dl className="space-y-4">
+            {filledFields.map((field) => (
+              <FieldView
+                key={field.key as string}
+                field={field}
+                value={persona[field.key]}
+              />
+            ))}
+          </dl>
+        </Card>
+      ))}
     </div>
   )
 }

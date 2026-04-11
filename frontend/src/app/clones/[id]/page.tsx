@@ -31,7 +31,7 @@ export default async function CloneDetailPage({ params }: PageProps) {
   const isOwner = !clone.is_npc && clone.user_id === user?.id
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-8">
+    <main className="mx-auto max-w-4xl px-4 py-8">
       <div className="mb-4 flex items-center justify-between">
         <Link href="/clones" className="text-sm text-muted-foreground hover:underline">
           ← 목록으로
