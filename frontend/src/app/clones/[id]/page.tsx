@@ -5,6 +5,7 @@ import { PersonaSummaryCard } from '@/components/persona/PersonaSummaryCard'
 import { ExpandablePersonaDetail } from '@/components/persona/ExpandablePersonaDetail'
 import { CloneNpcBadge } from '@/components/clone/CloneNpcBadge'
 import { DeleteCloneButton } from '@/components/clone/DeleteCloneButton'
+import { NewInteractionHero } from '@/components/interaction/NewInteractionHero'
 import { buttonVariants } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { MemoryInputBox } from '@/components/memory/MemoryInputBox'
@@ -47,27 +48,17 @@ export default async function CloneDetailPage({ params }: PageProps) {
         <Link href="/clones" className="text-sm text-muted-foreground hover:underline">
           ← 목록으로
         </Link>
-        <div className="flex items-center gap-2">
-          {clone.is_npc && (
+        {isOwner && (
+          <div className="flex items-center gap-2">
             <Link
-              href={`/interactions/new?partnerId=${clone.id}`}
-              className={buttonVariants({ size: 'sm' })}
+              href={`/clones/${clone.id}/edit`}
+              className={buttonVariants({ variant: 'outline', size: 'sm' })}
             >
-              대화 시작
+              상세 편집
             </Link>
-          )}
-          {isOwner && (
-            <>
-              <Link
-                href={`/clones/${clone.id}/edit`}
-                className={buttonVariants({ variant: 'outline', size: 'sm' })}
-              >
-                상세 편집
-              </Link>
-              <DeleteCloneButton cloneId={clone.id} cloneName={clone.name} />
-            </>
-          )}
-        </div>
+            <DeleteCloneButton cloneId={clone.id} cloneName={clone.name} />
+          </div>
+        )}
       </div>
 
       <Card className="mb-6 p-6">
@@ -78,6 +69,12 @@ export default async function CloneDetailPage({ params }: PageProps) {
         )}
         <PersonaSummaryCard persona={clone.persona_json} />
       </Card>
+
+      {clone.is_npc && (
+        <div className="mb-6">
+          <NewInteractionHero partnerId={clone.id} />
+        </div>
+      )}
 
       <ExpandablePersonaDetail persona={clone.persona_json} />
 

@@ -1,8 +1,8 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { Card } from '@/components/ui/card'
-import { buttonVariants } from '@/components/ui/button'
 import { InteractionStatusBadge } from '@/components/interaction/InteractionStatusBadge'
+import { NewInteractionHero } from '@/components/interaction/NewInteractionHero'
 import type { Interaction } from '@/types/interaction'
 import type { Clone } from '@/types/persona'
 
@@ -37,21 +37,20 @@ export default async function InteractionsPage() {
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-8">
-      <header className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Interactions</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Clone 간 대화 기록을 확인하고 새로 시작하세요.
-          </p>
-        </div>
-        <Link href="/interactions/new" className={buttonVariants({ size: 'sm' })}>
-          + 새 Interaction
-        </Link>
+      <header className="mb-6">
+        <h1 className="text-2xl font-semibold">Interactions</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Clone 간 대화 기록을 확인하고 새로 시작하세요.
+        </p>
       </header>
+
+      <div className="mb-6">
+        <NewInteractionHero />
+      </div>
 
       {interactions.length === 0 ? (
         <Card className="p-6 text-center text-sm text-muted-foreground">
-          아직 기록이 없어요. 새 Interaction을 시작해보세요.
+          아직 기록이 없어요. 위에서 새 대화를 시작해보세요.
         </Card>
       ) : (
         <div className="space-y-2">
