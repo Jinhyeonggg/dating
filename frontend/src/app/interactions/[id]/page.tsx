@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { InteractionViewer } from '@/components/interaction/InteractionViewer'
+import { DeleteInteractionButton } from '@/components/interaction/DeleteInteractionButton'
 import type { Clone } from '@/types/persona'
 import type { Interaction, InteractionEvent } from '@/types/interaction'
 
@@ -42,14 +43,22 @@ export default async function InteractionViewerPage({ params }: PageProps) {
     .eq('interaction_id', id)
     .order('turn_number', { ascending: true })
 
+  const pairLabel = participants.map((p) => p.name).join(' × ')
+
   return (
     <main className="mx-auto max-w-3xl px-4 py-8">
-      <Link
-        href="/interactions"
-        className="mb-4 inline-block text-sm text-muted-foreground hover:underline"
-      >
-        ← Interactions 목록
-      </Link>
+      <div className="mb-4 flex items-center justify-between">
+        <Link
+          href="/interactions"
+          className="text-sm text-muted-foreground hover:underline"
+        >
+          ← Interactions 목록
+        </Link>
+        <DeleteInteractionButton
+          interactionId={interaction.id}
+          label={pairLabel}
+        />
+      </div>
       <InteractionViewer
         interaction={interaction}
         initialEvents={(events ?? []) as InteractionEvent[]}

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import { errors, AppError } from '@/lib/errors'
 
 function toErrorResponse(err: unknown) {
@@ -45,6 +46,38 @@ export async function GET(
       .order('turn_number', { ascending: true })
 
     return NextResponse.json({ interaction, events: events ?? [] })
+  } catch (err) {
+    return toErrorResponse(err)
+  }
+}
+
+export async function DELETE(
+  _request: Request,
+  ctx: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await ctx.params
+    const supabase = await createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) throw errors.unauthorized()
+
+    const { data: existing } = await supabase
+      .from('interactions')
+      .select('id, created_by')
+      .eq('id', id)
+      .maybeSingle()
+
+    if (!existing) throw errors.notFound('Interaction')
+    if (existing.created_by !== user.id) throw errors.forbidden()
+
+    // FK에 on delete cascade 설정되어 participants/events/analyses 자동 삭제
+    const admin = createServiceClient()
+    const { error } = await admin.from('interactions').delete().eq('id', id)
+    if (error) throw errors.validation(error.message)
+
+    return NextResponse.json({ ok: true })
   } catch (err) {
     return toErrorResponse(err)
   }
