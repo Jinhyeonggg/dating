@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { PersonaSummaryCard } from '@/components/persona/PersonaSummaryCard'
 import { ExpandablePersonaDetail } from '@/components/persona/ExpandablePersonaDetail'
 import { CloneNpcBadge } from '@/components/clone/CloneNpcBadge'
+import { DeleteCloneButton } from '@/components/clone/DeleteCloneButton'
 import { buttonVariants } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import type { Clone } from '@/types/persona'
@@ -37,12 +38,15 @@ export default async function CloneDetailPage({ params }: PageProps) {
           ← 목록으로
         </Link>
         {isOwner && (
-          <Link
-            href={`/clones/${clone.id}/edit`}
-            className={buttonVariants({ variant: 'outline', size: 'sm' })}
-          >
-            상세 편집
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href={`/clones/${clone.id}/edit`}
+              className={buttonVariants({ variant: 'outline', size: 'sm' })}
+            >
+              상세 편집
+            </Link>
+            <DeleteCloneButton cloneId={clone.id} cloneName={clone.name} />
+          </div>
         )}
       </div>
 
