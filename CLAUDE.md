@@ -138,11 +138,13 @@ dating/
 
 ## 개발 단계
 
-- **Phase 1 (현재)** — 페르소나 입력 폼, Clone CRUD, 1:1 Interaction 엔진, 호환성 리포트, 메모리 업데이트 API
-- **Phase 2** — Realtime 스트리밍, 리포트 시각화, 배치 상호작용, 메모리 compaction
+- **Phase 1 ✅ 완료 (2026-04-12)** — 페르소나 입력 폼, Clone CRUD, 1:1 Interaction 엔진, 호환성 리포트, 메모리 업데이트 API, Supabase Auth + Google OAuth, Vercel 배포
+- **Phase 2 (다음)** — Realtime 스트리밍 안정화, 리포트 시각화 확장, 배치 상호작용, 메모리 compaction, 외부 환경(뉴스·SNS) context 주입
 - **Phase 3** — n-to-n 그룹 상호작용, 관계 그래프, 자율 스케줄링
 - **Phase 4** — 실제 데이터 연동 (카카오톡/인스타 파서 → 페르소나 자동 생성)
 - **Phase 5** — 지속적 메타버스, Clone 자율 에이전트, Human handoff
+
+> **새 대화에서 작업 재개 시**: `docs/PROJECT_STATE.md` 를 먼저 읽어 현재 구현 상태·알려진 이슈·Phase 2 백로그 파악.
 
 ---
 
