@@ -1,35 +1,57 @@
-# Dating Clone Simulation — Project Guide
+# Digital Clone Platform — Project Guide
 
-## 프로젝트 개요
+## 프로젝트 비전
 
-사용자의 디지털 클론(AI 페르소나)을 만들어 클론끼리 소개팅 시뮬레이션을 수행하는 서비스.
-서로의 스타일 궁합을 사전 검증 후 실제 매칭을 추천하는 것이 핵심 목적.
+사용자의 **디지털 클론(AI 페르소나)** 을 생성하고, 클론들이 서로 상호작용하며 **관계의 호환성**을 탐색하는 플랫폼.
 
-**현재 단계**: 프로토타입 — 사용자가 직접 입력한 페르소나 기반 (실제 SNS 데이터 연동은 v2)
+- 실제 만남 전에 온라인 대화로 대화 스타일·취미·가치관 궁합을 **저비용 사전 검증**
+- 사용자가 직접 많은 사람과 대화하지 않아도 클론이 대신 탐색
+- 궁극적으로 **1:1 매칭을 넘어 n-to-n 상호작용 메타버스** 지향
+
+> **도메인 용어 원칙**: "소개팅"·"데이팅"으로 범위를 좁혀 설계하지 말 것. 현재 1:1 대화는 *관계 탐색의 가장 단순한 형태*일 뿐이며, 모든 스키마·API·용어는 **`Interaction`(n-to-n 확장 가능)** 을 기준으로 설계한다.
+
+**현재 단계 (Phase 1)**: 2인 클론 간 대화 프로토타입. 사용자가 직접 입력하는 페르소나 기반.
 
 ---
 
 ## 기술 스택
 
-### Frontend + API
-- **Framework**: Next.js 15 (App Router) + TypeScript
-- **Styling**: Tailwind CSS
-- **상태관리**: useState / useContext (React 기본)
-- **Claude API 호출**: Next.js API Routes (`/api/*`)
-- **LLM**: Anthropic Claude API (`claude-sonnet-4-6` 기본, 비용 최적화 시 `claude-haiku-4-5-20251001`)
+| 영역 | 선택 |
+|---|---|
+| Framework | Next.js 15 (App Router) + TypeScript |
+| Styling | Tailwind CSS + 재사용 컴포넌트 |
+| DB / Auth / Realtime | Supabase |
+| LLM | Anthropic Claude API (`claude-sonnet-4-6` 기본, 경량 태스크는 `claude-haiku-4-5-20251001`) |
+| 배포 | Vercel |
 
-### Backend (Supabase)
-- **DB**: Supabase PostgreSQL
-- **Auth**: Supabase Auth
-- **실시간**: Supabase Realtime (시뮬레이션 스트리밍)
+---
 
-### AI / Simulation
-- **페르소나 엔진**: 구조화된 페르소나 JSON → Claude system prompt 변환
-- **시뮬레이션**: Claude API 멀티턴 대화 (두 클론이 번갈아 응답)
-- **궁합 분석**: 시뮬레이션 대화 로그 → 별도 분석 Claude 호출
+## 코딩 규칙
 
-### 인프라
-- **배포**: Vercel (Next.js)
+### 공통
+- 커밋: `feat:` / `fix:` / `refactor:` / `docs:` / `test:` / `chore:` 접두사
+- 환경변수는 `.env` 관리, `.env.example` 최신 유지
+- API 키·비밀키 하드코딩 금지
+
+### 재사용성 & 분리 (중요)
+사용자가 명시적 예외를 두지 않는 한:
+- **하드코딩 최소화**: 매직 넘버/문자열은 `lib/constants/` 또는 `lib/config/`에 상수로
+- **Inline CSS 금지**: Tailwind 유틸리티 또는 컴포넌트화된 클래스만. `style={{...}}` 사용 금지 (동적 트랜스폼 같은 불가피한 경우만 예외)
+- **Inline HTML 반복 금지**: 동일/유사 마크업이 2회 이상 등장하면 즉시 컴포넌트로 분리
+- **프리미티브 레이어**: `components/ui/`에 Button/Input/Card/Badge 등을 모아두고 feature 컴포넌트는 이를 조합
+- **인터페이스 분리**: 도메인 타입은 `types/`, API 계약(request/response)은 별도 인터페이스
+- **함수/훅 추출**: 컴포넌트 내 비즈니스 로직이 커지면 `useXxx` 훅 또는 `lib/` 함수로
+
+### TypeScript
+- `strict: true`, `any` 금지 (불가피하면 `unknown` + 좁히기)
+- 함수형 컴포넌트, `'use client'`는 인터랙션 리프로 최소화
+- 파일명: 컴포넌트 `PascalCase.tsx`, 유틸/훅 `camelCase.ts`
+
+### Claude API
+- 프롬프트는 `lib/prompts/`에 **템플릿 함수**로 관리 (상수 문자열 금지)
+- rate limit / context window / 네트워크 에러 모두 핸들링
+- 스트리밍 응답 활용
+- 상세 패턴은 `interaction` / `persona` skill 참조
 
 ---
 
@@ -40,83 +62,49 @@ dating/
 ├── frontend/
 │   ├── src/
 │   │   ├── app/
-│   │   │   ├── api/          # Next.js API Routes (Claude API 호출)
-│   │   │   │   ├── simulate/ # 시뮬레이션 엔드포인트
-│   │   │   │   └── analyze/  # 궁합 분석 엔드포인트
-│   │   │   └── (pages)
+│   │   │   ├── api/                # Next.js API Routes
+│   │   │   │   ├── clones/         # Clone CRUD
+│   │   │   │   ├── interactions/   # 상호작용 세션
+│   │   │   │   ├── memories/       # 에피소드 메모리 업데이트
+│   │   │   │   └── analyses/       # 호환성 분석
+│   │   │   └── (pages)/
 │   │   ├── components/
+│   │   │   ├── ui/                 # 프리미티브 (Button, Input, ...)
+│   │   │   ├── persona/
+│   │   │   └── interaction/
 │   │   ├── lib/
-│   │   │   ├── supabase.ts   # Supabase 클라이언트
-│   │   │   └── prompts/      # Claude 프롬프트 템플릿
+│   │   │   ├── supabase.ts
+│   │   │   ├── claude.ts
+│   │   │   ├── prompts/
+│   │   │   ├── config/             # 설정 상수
+│   │   │   └── constants/
 │   │   └── types/
-│   ├── .env.local.example
-│   └── package.json
+│   ├── supabase/migrations/
+│   └── .env.local.example
+├── .claude/skills/                 # 도메인별 상세 가이드
+│   ├── persona/                    # Persona 스키마 + 메모리
+│   ├── interaction/                # 상호작용 엔진
+│   ├── db-schema/                  # Supabase 스키마 + RLS
+│   └── review/
 ├── docs/
-│   └── RESEARCH.md
 └── CLAUDE.md
 ```
 
 ---
 
-## 코딩 규칙
+## 도메인 핵심 개념
 
-### 공통
-- 커밋 메시지: `feat:`, `fix:`, `refactor:`, `docs:`, `test:` 접두사
-- 모든 환경변수는 `.env` 파일 관리, `.env.example` 유지
-- API 키/비밀키 코드 하드코딩 금지
+| 개념 | 설명 | 상세 skill |
+|---|---|---|
+| **User** | 실제 사용자 (Supabase Auth) | — |
+| **Clone** | User의 디지털 페르소나. User당 여러 버전 가능 | `persona` |
+| **Persona** | Clone 정체성 정의 (코어 속성 + 에피소드 메모리) | `persona` |
+| **Interaction** | 둘 이상 Clone의 상호작용 세션. 1:1은 특수 케이스 | `interaction` |
+| **InteractionEvent** | 상호작용 내 개별 턴 | `interaction` |
+| **Analysis** | 상호작용 로그 기반 호환성 리포트 | `interaction` |
+| **Memory** | Clone 에피소드 메모리 (자연어 업데이트) | `persona` |
 
-### TypeScript (Frontend)
-- `strict: true` 모드
-- `any` 타입 사용 금지
-- 컴포넌트: 함수형만, `'use client'` 최소화
-- 파일명: 컴포넌트 PascalCase, 유틸 camelCase
-
-### Claude API 사용
-- 프롬프트 템플릿은 `backend/app/prompts/`에 별도 파일로 관리
-- 시뮬레이션 대화 최대 20턴 제한 (토큰 비용 + 현실감)
-- 스트리밍 응답 활용 (UX 개선)
-- rate limit, context window 초과 에러 핸들링 필수
-
----
-
-## 페르소나 스키마
-
-```json
-{
-  "name": "김지수",
-  "age": 28,
-  "gender": "여성",
-  "occupation": "UX 디자이너",
-  "mbti": "INFJ",
-  "interests": ["독서", "요가", "영화감상", "카페 탐방"],
-  "values": ["진정성", "배려", "성장"],
-  "dealbreakers": ["흡연", "무례한 언행"],
-  "communication_style": "초반엔 조심스럽지만 친해지면 솔직해짐. 유머 좋아함.",
-  "relationship_goal": "진지한 연애",
-  "self_description": "조용하지만 호기심이 많고, 깊은 대화를 선호함."
-}
-```
-
----
-
-## 시뮬레이션 파이프라인
-
-```
-1. 페르소나 A, B 입력
-        ↓
-2. 각 페르소나 → Claude system prompt 생성 (clone.py)
-        ↓
-3. 소개팅 시나리오 설정 (카페, 첫 만남 등)
-        ↓
-4. 멀티턴 대화 시뮬레이션 (simulation.py)
-   - Clone A 발화 → Clone B 응답 반복
-   - 최대 20턴
-        ↓
-5. 대화 로그 → 궁합 분석 (analysis.py)
-   - 대화 몰입도, 공통 관심사, 가치관 충돌, 유머 코드
-        ↓
-6. 궁합 점수 (0-100) + 분석 리포트
-```
+**상세 스키마·SQL·API 로직**은 관련 skill에 있다. 해당 영역 작업 시 skill을 참조할 것.
 
 ---
 
@@ -124,27 +112,33 @@ dating/
 
 | 결정 | 이유 |
 |------|------|
-| Next.js API Routes (FastAPI 제거) | 별도 서버 불필요, Vercel 단일 배포, 프로토타입 단순성 |
-| Supabase (SQLite 제거) | managed DB + Auth + Realtime 내장, 설정 최소화 |
-| 클론당 별도 Claude 호출 | stateless 설계로 확장 용이, 컨텍스트 분리로 페르소나 오염 방지 |
-| 시뮬레이션 20턴 제한 | 토큰 비용 제어 + 소개팅 현실감 |
-| Next.js App Router | 서버 컴포넌트로 초기 로딩 최적화, 스트리밍 UI 지원 |
+| Next.js API Routes (FastAPI 제거) | 별도 서버 불필요, Vercel 단일 배포 |
+| Supabase | managed DB + Auth + Realtime 통합 |
+| 클론당 stateless Claude 호출 | 컨텍스트 분리로 페르소나 오염 방지 |
+| 턴 수 기본 20 | 토큰 비용 제어 + 대화 현실감 |
+| App Router | 서버 컴포넌트 + 스트리밍 UI |
+| 페르소나 코어 / 에피소드 메모리 분리 | 업데이트 빈도·수명 상이 |
+| 도메인 용어 "Interaction" | n-to-n 확장 대비, 소개팅 도메인 비구속 |
+| Persona 필드 풍부 + null 허용 | 사용자 정보량 다양성 수용 |
+| `interaction_participants` 조인 테이블 | 1:1 하드코딩 금지, n명 참여자 표현 |
 
 ---
 
 ## 개발 단계
 
-### Phase 1 (프로토타입 코어)
-- 페르소나 입력 → 클론 생성 API
-- 시뮬레이션 엔진 (백엔드)
-- 기본 UI (입력 폼 + 시뮬레이션 뷰어)
+- **Phase 1 (현재)** — 페르소나 입력 폼, Clone CRUD, 1:1 Interaction 엔진, 호환성 리포트, 메모리 업데이트 API
+- **Phase 2** — Realtime 스트리밍, 리포트 시각화, 배치 상호작용, 메모리 compaction
+- **Phase 3** — n-to-n 그룹 상호작용, 관계 그래프, 자율 스케줄링
+- **Phase 4** — 실제 데이터 연동 (카카오톡/인스타 파서 → 페르소나 자동 생성)
+- **Phase 5** — 지속적 메타버스, Clone 자율 에이전트, Human handoff
 
-### Phase 2 (UX 개선)
-- 실시간 스트리밍 시뮬레이션 (WebSocket 또는 SSE)
-- 궁합 분석 리포트 시각화
-- 여러 후보와 배치 시뮬레이션
+---
 
-### Phase 3 (데이터 연동 — v2)
-- 카카오톡 대화 데이터 파서
-- 인스타그램 활동 데이터 파서
-- 실제 데이터 기반 페르소나 자동 생성
+## 작업 시 참조할 Skill
+
+| 작업 영역 | Skill |
+|---|---|
+| 페르소나 폼, `/api/clones`, `/api/memories`, system prompt | `persona` |
+| `/api/interactions`, `/api/analyses`, 턴 엔진, 분석 | `interaction` |
+| Supabase 마이그레이션, 테이블, RLS | `db-schema` |
+| 코드 리뷰 체크리스트 | `review` |
