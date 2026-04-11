@@ -7,7 +7,9 @@ import { CloneNpcBadge } from '@/components/clone/CloneNpcBadge'
 import { DeleteCloneButton } from '@/components/clone/DeleteCloneButton'
 import { buttonVariants } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import type { Clone } from '@/types/persona'
+import { MemoryInputBox } from '@/components/memory/MemoryInputBox'
+import { MemoryTimeline } from '@/components/memory/MemoryTimeline'
+import type { Clone, CloneMemory } from '@/types/persona'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -30,6 +32,14 @@ export default async function CloneDetailPage({ params }: PageProps) {
   if (!clone) notFound()
 
   const isOwner = !clone.is_npc && clone.user_id === user?.id
+
+  const { data: memoriesData } = await supabase
+    .from('clone_memories')
+    .select('*')
+    .eq('clone_id', id)
+    .order('occurred_at', { ascending: false })
+    .limit(50)
+  const memories = (memoriesData ?? []) as CloneMemory[]
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-8">
@@ -70,6 +80,16 @@ export default async function CloneDetailPage({ params }: PageProps) {
       </Card>
 
       <ExpandablePersonaDetail persona={clone.persona_json} />
+
+      <section className="mt-8">
+        <h2 className="mb-3 text-lg font-semibold">메모리</h2>
+        {isOwner && (
+          <div className="mb-4">
+            <MemoryInputBox cloneId={clone.id} />
+          </div>
+        )}
+        <MemoryTimeline memories={memories} />
+      </section>
     </main>
   )
 }
