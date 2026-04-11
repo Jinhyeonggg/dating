@@ -28,6 +28,7 @@ export async function AppNav() {
 
   const navLinks: { href: string; label: string }[] = [
     { href: '/clones', label: 'Clones' },
+    { href: '/interactions', label: 'Interactions' },
   ]
   if (myClonesCount > 0) {
     navLinks.push({ href: myCloneHref, label: '내 Clone' })
