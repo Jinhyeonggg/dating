@@ -405,6 +405,83 @@ export const errors = {
 
 ---
 
+## §8. 로딩 & 피드백 UX
+
+프로토타입 단계에서 "웹사이트가 제대로 돌아가고 있는가?"를 항상 즉시 알 수 있어야 한다. **스피너 하나로 버티지 않고**, 각 상태마다 명시적 시각 신호를 준다.
+
+### 전역 원칙
+- **스켈레톤 우선**: 목록/카드/상세 초기 로딩은 `components/ui/skeleton.tsx` (shadcn)로 레이아웃 유지
+- **스피너는 버튼 안에만**: 페이지 전체 스피너 금지 (레이아웃 점프 발생)
+- **진행 카운터 명시**: "3/20 턴", "분석 생성 중 (약 10초)" 같이 사용자가 예상 가능한 단위
+- **Realtime 연결 상태 배지**: 헤더 우상단에 항상 표시 (`connected` / `reconnecting` / `offline`)
+- **네트워크 실패 감지**: `fetch` 레이어에서 타임아웃·오프라인 감지 → 토스트 + 재시도 CTA
+- **낙관적 업데이트**: 메모리 추가·Clone 편집 같은 빠른 액션은 즉시 UI 반영, 실패 시 롤백
+
+### 상황별 피드백
+
+**Clone 목록/상세 로딩**
+- 스켈레톤 카드 (shadcn `Skeleton` 조합)
+- 3초 초과 시 "서버 연결 중..." 하단 배지
+
+**Clone 생성 (POST /api/clones)**
+- 버튼 → `disabled` + `Loader2` 아이콘 스핀 + "생성 중..."
+- 성공 → 토스트 "Clone 생성됨" + 목록 리다이렉트
+- 실패 → inline 에러 메시지 + 재시도 가능
+
+**Interaction 시작 (POST /api/interactions)**
+- 버튼 → "Interaction 준비 중..." (1-2초)
+- 생성 완료 즉시 뷰어 페이지로 이동 — 뷰어가 나머지 진행 상황 담당
+
+**Interaction 뷰어 — 가장 중요한 화면**
+- **상단 상태 바**: `[●] Clone A ↔ Clone B · 5/20 turns · running`
+- **진행률 바**: 턴 수 기반 linear progress (shadcn `Progress`)
+- **턴 등장 애니메이션**: 새 메시지가 Realtime으로 들어올 때 fade-in + slide-up (tailwindcss-animate)
+- **Typing Indicator**: 다음 발화자 자리에 `TypingIndicator` 컴포넌트 (3개 점이 위아래로 움직이는 애니메이션)
+- **Heartbeat 표시**: Realtime 마지막 이벤트 수신 시각이 5초 넘어가면 상태 바 색 변경 (녹색 → 노랑 → 빨강) + "응답 기다리는 중..." 텍스트
+- **완료 시**: 상단 바가 "completed · 20/20" 로 전환, 하단 "분석 보기" CTA 등장 (pulse 애니메이션으로 주목)
+- **실패 시**: 상단 바가 빨강 + "재시도" CTA, 부분 진행된 메시지는 남김
+
+**메모리 추가 (POST /api/memories)**
+- 입력 박스 하단 `Loader2` + "기억 추출 중..."
+- 성공 → 타임라인 상단에 새 항목 slide-in 애니메이션
+- 실패 → 입력 복구 + inline 에러
+
+**분석 생성 (POST /api/analyses)**
+- "분석 보기" 버튼 클릭 → 버튼 자리에 Progress bar + "대화 분석 중... (약 10-20초 소요)"
+- 생성 완료 → 리포트 영역 fade-in, 카테고리별 점수 bar는 0→실제값 애니메이션
+- 실패 → 재시도 버튼
+
+### 공통 컴포넌트 (추가)
+
+`components/ui/` 프리미티브:
+- `skeleton.tsx` (shadcn 기본)
+- `progress.tsx` (shadcn)
+- `spinner.tsx` — 버튼 내 인라인용 `Loader2` 래퍼
+- `connection-status.tsx` — Realtime 연결 배지 (헤더)
+
+`components/feedback/` (신규 디렉토리):
+- `PageSkeleton.tsx` — 공통 스켈레톤 레이아웃
+- `EmptyState.tsx` — "아직 Clone이 없어요" 같은 빈 상태
+- `ErrorState.tsx` — inline 에러 + 재시도 CTA
+- `TypingIndicator.tsx` — 대화 뷰어용 점 애니메이션
+- `ProgressCallout.tsx` — "분석 중..." 같은 긴 작업 알림
+
+### Realtime 연결 관리
+
+`lib/supabase/realtime.ts`:
+- `subscribeInteractionEvents(interactionId, onEvent)` — 채널 생성·구독
+- **Heartbeat 모니터링**: 최근 이벤트 수신 시각을 상태로 관리, 5초/10초/30초 임계값에서 UI 알림
+- **자동 재연결**: 연결 끊김 감지 시 지수 백오프로 재시도, 성공 시 "다시 연결됨" 토스트
+- **구독 해제 정리**: 페이지 unmount 시 `channel.unsubscribe()` 필수
+
+### 성능 목표 (수동 확인 체크리스트에 추가)
+- 페이지 초기 로드: 스켈레톤이 **100ms 내** 보여야 함 (아무것도 안 보이는 시간 금지)
+- Clone 생성: 버튼 클릭 → 로딩 표시 **즉시**
+- Interaction 첫 턴 등장: 시작 클릭 → **5초 내** 첫 메시지 Realtime 도착
+- 5초 초과 시 "응답 기다리는 중..." 메시지 자동 표시
+
+---
+
 ## §7. 테스트 전략
 
 ### 범위
