@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { INTERACTION_DEFAULTS } from '@/lib/config/interaction'
 
 export const createInteractionSchema = z.object({
-  participantCloneIds: z.array(z.string().uuid()).length(2),
+  participantCloneIds: z.array(z.string().min(1)).length(2),
   scenarioId: z.string().min(1),
   setting: z.string().nullable().optional(),
   maxTurns: z.number().int().min(2).max(40).optional(),

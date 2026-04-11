@@ -47,7 +47,12 @@ export default function NewInteractionPage() {
         }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data?.error?.message ?? '생성 실패')
+      if (!res.ok) {
+        const detail = data?.error?.details
+          ? ` (${JSON.stringify(data.error.details)})`
+          : ''
+        throw new Error((data?.error?.message ?? '생성 실패') + detail)
+      }
       router.push(`/interactions/${data.interaction.id}`)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
