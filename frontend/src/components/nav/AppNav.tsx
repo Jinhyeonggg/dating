@@ -44,7 +44,7 @@ export async function AppNav() {
           <div className="flex items-center gap-1">
             {navLinks.map((link) => (
               <Link
-                key={link.href}
+                key={link.label}
                 href={link.href}
                 className={cn(
                   buttonVariants({ variant: 'ghost', size: 'sm' }),
