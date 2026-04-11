@@ -31,16 +31,16 @@ export function PersonaFullEditor({
         <Tabs
           defaultValue={PERSONA_SECTIONS[0].category}
           orientation="vertical"
-          className="gap-6"
+          className="grid grid-cols-[10rem_1fr] gap-6 items-start"
         >
-          <TabsList className="min-w-40 shrink-0">
+          <TabsList className="h-fit">
             {PERSONA_SECTIONS.map((s) => (
               <TabsTrigger key={s.category} value={s.category}>
                 {s.label}
               </TabsTrigger>
             ))}
           </TabsList>
-          <div className="flex-1 min-w-0 min-h-[32rem]">
+          <div className="w-full min-h-[32rem]">
             {PERSONA_SECTIONS.map((s) => (
               <TabsContent key={s.category} value={s.category}>
                 <PersonaSection control={methods.control} category={s.category} />

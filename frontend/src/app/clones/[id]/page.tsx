@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { PersonaSummaryCard } from '@/components/persona/PersonaSummaryCard'
-import { PersonaDetailView } from '@/components/persona/PersonaDetailView'
+import { ExpandablePersonaDetail } from '@/components/persona/ExpandablePersonaDetail'
 import { CloneNpcBadge } from '@/components/clone/CloneNpcBadge'
 import { buttonVariants } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -55,7 +55,7 @@ export default async function CloneDetailPage({ params }: PageProps) {
         <PersonaSummaryCard persona={clone.persona_json} />
       </Card>
 
-      <PersonaDetailView persona={clone.persona_json} />
+      <ExpandablePersonaDetail persona={clone.persona_json} />
     </main>
   )
 }

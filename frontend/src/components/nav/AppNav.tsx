@@ -4,12 +4,6 @@ import { LogoutButton } from './LogoutButton'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
-const NAV_LINKS = [
-  { href: '/clones', label: 'Clones' },
-  // Plan 4+: { href: '/interactions', label: 'Interactions' },
-  // Plan 5+: { href: '/analyses', label: 'Analyses' },
-] as const
-
 export async function AppNav() {
   const supabase = await createClient()
   const {
@@ -17,6 +11,27 @@ export async function AppNav() {
   } = await supabase.auth.getUser()
 
   if (!user) return null
+
+  // 내 Clone 바로가기 — 정확히 1개면 상세 페이지로, 아니면 /clones 로
+  const { data: myClones } = await supabase
+    .from('clones')
+    .select('id')
+    .eq('is_npc', false)
+    .eq('user_id', user.id)
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false })
+    .limit(2)
+
+  const myClonesCount = myClones?.length ?? 0
+  const myCloneHref =
+    myClonesCount === 1 && myClones ? `/clones/${myClones[0].id}` : '/clones'
+
+  const navLinks: { href: string; label: string }[] = [
+    { href: '/clones', label: 'Clones' },
+  ]
+  if (myClonesCount > 0) {
+    navLinks.push({ href: myCloneHref, label: '내 Clone' })
+  }
 
   return (
     <nav className="border-b bg-background">
@@ -26,7 +41,7 @@ export async function AppNav() {
             Digital Clone
           </Link>
           <div className="flex items-center gap-1">
-            {NAV_LINKS.map((link) => (
+            {navLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
