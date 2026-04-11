@@ -10,7 +10,7 @@ interface Props {
 
 export function MyCloneSelector({ clones, selectedId }: Props) {
   return (
-    <div className="flex gap-3 overflow-x-auto pb-2">
+    <div className="flex gap-3 overflow-x-auto px-1 pt-1 pb-2">
       {clones.map((c) => {
         const active = c.id === selectedId
         const chips: string[] = []
@@ -28,7 +28,7 @@ export function MyCloneSelector({ clones, selectedId }: Props) {
             <Card
               className={cn(
                 'flex h-full min-h-[5.5rem] w-56 flex-col p-3 transition hover:bg-muted/50',
-                active && 'ring-2 ring-primary bg-muted/30'
+                active && 'bg-muted/30 ring-2 ring-primary ring-inset'
               )}
             >
               <p className="truncate text-sm font-semibold">{c.name}</p>
