@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import type { Clone } from '@/types/persona'
-import { Button } from '@/components/ui/button'
+import { buttonVariants } from '@/components/ui/button'
 import { CloneCard } from './CloneCard'
 
 interface CloneListProps {
@@ -14,9 +14,9 @@ export function CloneList({ mine, npcs }: CloneListProps) {
       <section>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-xl font-semibold">내 Clone</h2>
-          <Button asChild size="sm">
-            <Link href="/clones/new">+ 새 Clone 만들기</Link>
-          </Button>
+          <Link href="/clones/new" className={buttonVariants({ size: 'sm' })}>
+            + 새 Clone 만들기
+          </Link>
         </div>
         {mine.length === 0 ? (
           <p className="text-sm text-muted-foreground">
