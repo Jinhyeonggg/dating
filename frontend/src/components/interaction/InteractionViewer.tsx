@@ -70,18 +70,28 @@ export function InteractionViewer({ interaction, initialEvents, participants }: 
     return () => clearInterval(interval)
   }, [lastEventAt, status])
 
-  // status polling (run 끝나면 Realtime으로 오는 게 아니라 server update → poll로 보완)
+  // status + events polling fallback — Realtime이 실패해도 일관성 유지
   useEffect(() => {
     if (status === 'completed' || status === 'failed') return
     const interval = setInterval(async () => {
       try {
         const r = await fetch(`/api/interactions/${interaction.id}`)
         const data = await r.json()
+        if (Array.isArray(data?.events) && data.events.length > 0) {
+          setEvents((prev) => {
+            const byId = new Map(prev.map((e: InteractionEvent) => [e.id, e]))
+            for (const e of data.events as InteractionEvent[]) byId.set(e.id, e)
+            return Array.from(byId.values()).sort(
+              (a, b) => a.turn_number - b.turn_number
+            )
+          })
+          setLastEventAt(Date.now())
+        }
         if (data?.interaction?.status) {
           setStatus(data.interaction.status)
         }
       } catch {}
-    }, 5000)
+    }, 3000)
     return () => clearInterval(interval)
   }, [interaction.id, status])
 
