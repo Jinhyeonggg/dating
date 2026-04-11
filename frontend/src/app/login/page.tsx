@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,11 +9,25 @@ import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
 
 export default function LoginPage() {
+  const router = useRouter()
   const [email, setEmail] = useState('')
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>(
     'idle'
   )
   const [errorMsg, setErrorMsg] = useState('')
+
+  // 다른 탭(이메일 링크 클릭한 새 탭)에서 인증되면 이 탭도 자동 이동
+  useEffect(() => {
+    const supabase = createClient()
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+        supabase.auth.getSession().then(({ data }) => {
+          if (data.session) router.replace('/clones')
+        })
+      }
+    })
+    return () => sub.subscription.unsubscribe()
+  }, [router])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -66,9 +81,12 @@ export default function LoginPage() {
           </Button>
 
           {status === 'sent' && (
-            <p className="text-sm text-green-600">
-              ✓ {email} 로 매직링크를 보냈습니다. 이메일을 확인하세요.
-            </p>
+            <div className="space-y-1 text-sm text-green-600">
+              <p>✓ {email} 로 매직링크를 보냈습니다.</p>
+              <p className="text-xs text-muted-foreground">
+                메일의 링크를 누르면 이 창이 자동으로 이동합니다. 새로 열린 탭은 닫아도 됩니다.
+              </p>
+            </div>
           )}
 
           {status === 'error' && (
