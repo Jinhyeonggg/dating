@@ -12,28 +12,23 @@ export async function AppNav() {
 
   if (!user) return null
 
-  // 내 Clone 바로가기 — 정확히 1개면 상세 페이지로, 아니면 /clones 로
+  // 내 Clone 바로가기 — 1개 이상 있으면 /clones/mine (선택형 뷰) 로
   const { data: myClones } = await supabase
     .from('clones')
     .select('id')
     .eq('is_npc', false)
     .eq('user_id', user.id)
     .is('deleted_at', null)
-    .order('created_at', { ascending: false })
-    .limit(2)
+    .limit(1)
 
-  const myClonesCount = myClones?.length ?? 0
+  const hasMyClone = (myClones?.length ?? 0) > 0
 
   const navLinks: NavLink[] = [
     { href: '/clones', label: 'Clones' },
     { href: '/interactions', label: 'Interactions' },
   ]
-  // 클론이 정확히 1개일 때만 바로가기 노출 (목록은 "Clones" 가 이미 담당)
-  if (myClonesCount === 1 && myClones) {
-    navLinks.push({
-      href: `/clones/${myClones[0].id}`,
-      label: '내 Clone',
-    })
+  if (hasMyClone) {
+    navLinks.push({ href: '/clones/mine', label: '내 Clone' })
   }
 
   return (
