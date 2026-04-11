@@ -11,18 +11,17 @@
 
 ## 기술 스택
 
-### Backend
-- **Runtime**: Python 3.12+
-- **Framework**: FastAPI
-- **LLM**: Anthropic Claude API (`claude-sonnet-4-6` 기본, 비용 최적화 시 `claude-haiku-4-5-20251001`)
-- **DB**: SQLite (프로토타입) → PostgreSQL (프로덕션)
-- **ORM**: SQLAlchemy + Alembic
-
-### Frontend
+### Frontend + API
 - **Framework**: Next.js 15 (App Router) + TypeScript
 - **Styling**: Tailwind CSS
-- **State**: Zustand
-- **API 통신**: TanStack Query + Axios
+- **상태관리**: useState / useContext (React 기본)
+- **Claude API 호출**: Next.js API Routes (`/api/*`)
+- **LLM**: Anthropic Claude API (`claude-sonnet-4-6` 기본, 비용 최적화 시 `claude-haiku-4-5-20251001`)
+
+### Backend (Supabase)
+- **DB**: Supabase PostgreSQL
+- **Auth**: Supabase Auth
+- **실시간**: Supabase Realtime (시뮬레이션 스트리밍)
 
 ### AI / Simulation
 - **페르소나 엔진**: 구조화된 페르소나 JSON → Claude system prompt 변환
@@ -30,8 +29,7 @@
 - **궁합 분석**: 시뮬레이션 대화 로그 → 별도 분석 Claude 호출
 
 ### 인프라
-- **로컬 개발**: Docker Compose (backend + frontend + db)
-- **배포**: Vercel (frontend) + Railway (backend)
+- **배포**: Vercel (Next.js)
 
 ---
 
@@ -39,31 +37,22 @@
 
 ```
 dating/
-├── backend/
-│   ├── app/
-│   │   ├── main.py
-│   │   ├── api/          # FastAPI 라우터
-│   │   ├── core/         # 설정, 의존성
-│   │   ├── models/       # SQLAlchemy 모델
-│   │   ├── schemas/      # Pydantic 스키마
-│   │   ├── services/
-│   │   │   ├── clone.py      # 클론 생성/관리
-│   │   │   ├── simulation.py # 시뮬레이션 엔진
-│   │   │   └── analysis.py   # 궁합 분석
-│   │   └── prompts/      # Claude 프롬프트 템플릿
-│   ├── tests/
-│   ├── pyproject.toml
-│   └── .env.example
 ├── frontend/
 │   ├── src/
-│   │   ├── app/          # Next.js App Router
+│   │   ├── app/
+│   │   │   ├── api/          # Next.js API Routes (Claude API 호출)
+│   │   │   │   ├── simulate/ # 시뮬레이션 엔드포인트
+│   │   │   │   └── analyze/  # 궁합 분석 엔드포인트
+│   │   │   └── (pages)
 │   │   ├── components/
-│   │   ├── lib/          # API 클라이언트, 유틸
-│   │   └── types/        # TypeScript 타입
+│   │   ├── lib/
+│   │   │   ├── supabase.ts   # Supabase 클라이언트
+│   │   │   └── prompts/      # Claude 프롬프트 템플릿
+│   │   └── types/
+│   ├── .env.local.example
 │   └── package.json
 ├── docs/
-│   └── RESEARCH.md       # 경쟁 서비스 분석
-├── docker-compose.yml
+│   └── RESEARCH.md
 └── CLAUDE.md
 ```
 
@@ -75,13 +64,6 @@ dating/
 - 커밋 메시지: `feat:`, `fix:`, `refactor:`, `docs:`, `test:` 접두사
 - 모든 환경변수는 `.env` 파일 관리, `.env.example` 유지
 - API 키/비밀키 코드 하드코딩 금지
-
-### Python (Backend)
-- 포매터: `ruff format`, 린터: `ruff check`
-- 함수 시그니처에 타입 힌트 필수
-- Pydantic 모델로 입출력 검증
-- 비동기 우선 (`async/await`)
-- 테스트: `pytest` + `pytest-asyncio`
 
 ### TypeScript (Frontend)
 - `strict: true` 모드
@@ -142,8 +124,8 @@ dating/
 
 | 결정 | 이유 |
 |------|------|
-| FastAPI | async 지원, 자동 OpenAPI 문서, Python AI 생태계 호환 |
-| SQLite → PostgreSQL | 프로토타입 단순성 우선, 추후 pgvector 마이그레이션 |
+| Next.js API Routes (FastAPI 제거) | 별도 서버 불필요, Vercel 단일 배포, 프로토타입 단순성 |
+| Supabase (SQLite 제거) | managed DB + Auth + Realtime 내장, 설정 최소화 |
 | 클론당 별도 Claude 호출 | stateless 설계로 확장 용이, 컨텍스트 분리로 페르소나 오염 방지 |
 | 시뮬레이션 20턴 제한 | 토큰 비용 제어 + 소개팅 현실감 |
 | Next.js App Router | 서버 컴포넌트로 초기 로딩 최적화, 스트리밍 UI 지원 |
