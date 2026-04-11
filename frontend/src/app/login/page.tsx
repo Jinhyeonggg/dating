@@ -15,6 +15,7 @@ export default function LoginPage() {
     'idle'
   )
   const [errorMsg, setErrorMsg] = useState('')
+  const [googlePending, setGooglePending] = useState(false)
 
   // 다른 탭(이메일 링크 클릭한 새 탭)에서 인증되면 이 탭도 자동 이동
   useEffect(() => {
@@ -50,35 +51,77 @@ export default function LoginPage() {
     }
   }
 
+  async function handleGoogleLogin() {
+    setGooglePending(true)
+    setErrorMsg('')
+    const supabase = createClient()
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    })
+    if (error) {
+      setStatus('error')
+      setErrorMsg(error.message)
+      setGooglePending(false)
+    }
+    // 성공 시 Supabase가 자동으로 Google 동의 화면으로 redirect → 이 컴포넌트 unmount
+  }
+
   return (
     <main className="flex min-h-screen items-center justify-center p-6">
       <Card className="w-full max-w-md p-8">
         <h1 className="text-2xl font-semibold">로그인</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          이메일로 매직링크를 받아 로그인하세요.
+          Google 계정 또는 이메일 매직링크로 로그인하세요.
         </p>
 
-        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">이메일</Label>
-            <Input
-              id="email"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              disabled={status === 'sending' || status === 'sent'}
-            />
+        <div className="mt-6 space-y-4">
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={handleGoogleLogin}
+            disabled={googlePending || status === 'sending'}
+          >
+            {googlePending ? '이동 중...' : 'Google로 계속하기'}
+          </Button>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">
+                또는
+              </span>
+            </div>
           </div>
 
-          <Button
-            type="submit"
-            className="w-full"
-            disabled={status === 'sending' || status === 'sent'}
-          >
-            {status === 'sending' ? '전송 중...' : '매직링크 보내기'}
-          </Button>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">이메일</Label>
+              <Input
+                id="email"
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                disabled={status === 'sending' || status === 'sent' || googlePending}
+              />
+            </div>
+
+            <Button
+              type="submit"
+              variant="secondary"
+              className="w-full"
+              disabled={status === 'sending' || status === 'sent' || googlePending}
+            >
+              {status === 'sending' ? '전송 중...' : '매직링크 보내기'}
+            </Button>
+          </form>
 
           {status === 'sent' && (
             <div className="space-y-1 text-sm text-green-600">
@@ -89,10 +132,10 @@ export default function LoginPage() {
             </div>
           )}
 
-          {status === 'error' && (
+          {status === 'error' && errorMsg && (
             <p className="text-sm text-destructive">✗ {errorMsg}</p>
           )}
-        </form>
+        </div>
       </Card>
     </main>
   )
