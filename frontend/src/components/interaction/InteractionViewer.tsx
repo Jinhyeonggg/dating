@@ -6,6 +6,7 @@ import { MessageBubble } from './MessageBubble'
 import { TypingIndicator } from './TypingIndicator'
 import { InteractionStatusBadge } from './InteractionStatusBadge'
 import { InteractionProgressBar } from './InteractionProgressBar'
+import { AnalysisGenerateButton } from '@/components/analysis/AnalysisGenerateButton'
 import { Card } from '@/components/ui/card'
 import { INTERACTION_DEFAULTS } from '@/lib/config/interaction'
 import type { Interaction, InteractionEvent, InteractionStatus } from '@/types/interaction'
@@ -153,10 +154,10 @@ export function InteractionViewer({ interaction, initialEvents, participants }: 
 
       {status === 'completed' && (
         <Card className="p-4 text-center">
-          <p className="mb-2 text-sm">대화가 완료되었습니다.</p>
-          <p className="text-xs text-muted-foreground">
-            호환성 분석은 Plan 5에서 활성화됩니다.
-          </p>
+          <p className="mb-3 text-sm">대화가 완료되었습니다.</p>
+          <div className="flex justify-center">
+            <AnalysisGenerateButton interactionId={interaction.id} />
+          </div>
         </Card>
       )}
       {status === 'failed' && (
