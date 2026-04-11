@@ -35,7 +35,8 @@ export function ArrayInput({ value, onChange, placeholder }: ArrayInputProps) {
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') {
+            // 한글 IME 조합 중인 Enter는 글자 확정용이므로 무시
+            if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
               e.preventDefault()
               addItem()
             }
