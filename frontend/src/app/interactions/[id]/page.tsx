@@ -19,6 +19,10 @@ export default async function InteractionViewerPage({ params }: PageProps) {
   const { id } = await params
   const supabase = await createClient()
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
   const { data: interaction } = await supabase
     .from('interactions')
     .select('*')
@@ -36,6 +40,14 @@ export default async function InteractionViewerPage({ params }: PageProps) {
       (r) => r.clones
     ) ?? []
   if (participants.length !== 2) notFound()
+
+  // 내 Clone을 오른쪽(index 1)으로 정렬 — 메시징 앱 관례
+  const isMine = (c: Clone) => !c.is_npc && c.user_id === user?.id
+  participants.sort((a, b) => {
+    const aMine = isMine(a) ? 1 : 0
+    const bMine = isMine(b) ? 1 : 0
+    return aMine - bMine
+  })
 
   const { data: events } = await supabase
     .from('interaction_events')

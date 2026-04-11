@@ -37,17 +37,27 @@ export default async function CloneDetailPage({ params }: PageProps) {
         <Link href="/clones" className="text-sm text-muted-foreground hover:underline">
           ← 목록으로
         </Link>
-        {isOwner && (
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
+          {clone.is_npc && (
             <Link
-              href={`/clones/${clone.id}/edit`}
-              className={buttonVariants({ variant: 'outline', size: 'sm' })}
+              href={`/interactions/new?partnerId=${clone.id}`}
+              className={buttonVariants({ size: 'sm' })}
             >
-              상세 편집
+              대화 시작
             </Link>
-            <DeleteCloneButton cloneId={clone.id} cloneName={clone.name} />
-          </div>
-        )}
+          )}
+          {isOwner && (
+            <>
+              <Link
+                href={`/clones/${clone.id}/edit`}
+                className={buttonVariants({ variant: 'outline', size: 'sm' })}
+              >
+                상세 편집
+              </Link>
+              <DeleteCloneButton cloneId={clone.id} cloneName={clone.name} />
+            </>
+          )}
+        </div>
       </div>
 
       <Card className="mb-6 p-6">

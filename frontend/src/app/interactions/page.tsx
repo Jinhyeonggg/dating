@@ -13,6 +13,13 @@ interface InteractionRow extends Interaction {
   }>
 }
 
+const DATE_FORMATTER = new Intl.DateTimeFormat('ko-KR', {
+  month: 'short',
+  day: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+})
+
 export default async function InteractionsPage() {
   const supabase = await createClient()
   const {
@@ -52,13 +59,25 @@ export default async function InteractionsPage() {
             const names = i.interaction_participants
               .map((p) => p.clones?.name ?? '?')
               .join(' × ')
+            const when = DATE_FORMATTER.format(new Date(i.created_at))
+            const turns =
+              typeof (i.metadata as Record<string, unknown>)?.turnsCompleted ===
+              'number'
+                ? `${(i.metadata as { turnsCompleted: number }).turnsCompleted}턴`
+                : null
             return (
               <Link key={i.id} href={`/interactions/${i.id}`} className="block">
-                <Card className="flex items-center justify-between p-4 transition hover:bg-muted/50">
-                  <div className="min-w-0">
-                    <p className="truncate font-medium">{names}</p>
+                <Card className="flex items-center justify-between gap-3 p-4 transition hover:bg-muted/50">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="truncate font-medium">{names}</p>
+                      <span className="shrink-0 text-[11px] text-muted-foreground">
+                        · {when}
+                      </span>
+                    </div>
                     <p className="mt-0.5 truncate text-xs text-muted-foreground">
                       {i.scenario}
+                      {turns && <span className="ml-2">· {turns}</span>}
                     </p>
                   </div>
                   <InteractionStatusBadge status={i.status} />

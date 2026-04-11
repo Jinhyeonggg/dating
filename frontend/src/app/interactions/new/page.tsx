@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { InteractionPairPicker } from '@/components/interaction/InteractionPairPicker'
@@ -10,7 +10,23 @@ import { DEFAULT_SCENARIOS } from '@/lib/config/interaction'
 import type { Clone } from '@/types/persona'
 
 export default function NewInteractionPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="mx-auto max-w-3xl px-4 py-8">
+          <p className="text-sm text-muted-foreground">불러오는 중...</p>
+        </main>
+      }
+    >
+      <NewInteractionContent />
+    </Suspense>
+  )
+}
+
+function NewInteractionContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const partnerIdFromQuery = searchParams.get('partnerId')
   const [mine, setMine] = useState<Clone[]>([])
   const [npcs, setNpcs] = useState<Clone[]>([])
   const [pair, setPair] = useState<[string | null, string | null]>([null, null])
@@ -23,12 +39,24 @@ export default function NewInteractionPage() {
     fetch('/api/clones')
       .then((r) => r.json())
       .then((data) => {
-        setMine(data.mine ?? [])
-        setNpcs(data.npcs ?? [])
+        const mineList: Clone[] = data.mine ?? []
+        const npcList: Clone[] = data.npcs ?? []
+        setMine(mineList)
+        setNpcs(npcList)
+
+        const validPartner =
+          partnerIdFromQuery &&
+          [...mineList, ...npcList].some((c) => c.id === partnerIdFromQuery)
+            ? partnerIdFromQuery
+            : null
+        setPair([
+          mineList.length === 1 ? mineList[0].id : null,
+          validPartner,
+        ])
         setLoading(false)
       })
       .catch(() => setLoading(false))
-  }, [])
+  }, [partnerIdFromQuery])
 
   async function handleStart() {
     if (!pair[0] || !pair[1]) {
