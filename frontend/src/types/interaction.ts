@@ -26,6 +26,7 @@ export interface InteractionEvent {
   speaker_clone_id: string
   content: string
   created_at: string
+  next_speaker_clone_id?: string | null
 }
 
 export interface InteractionParticipant {

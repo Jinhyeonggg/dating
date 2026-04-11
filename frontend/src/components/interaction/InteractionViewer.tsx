@@ -100,9 +100,19 @@ export function InteractionViewer({ interaction, initialEvents, participants }: 
     cloneId === leftClone.id ? 'left' : 'right'
 
   const maxTurns = interaction.max_turns
-  // 다음 발화자는 엔진이 결정함. 향후 연속 발화(같은 사람이 여러 턴) 도 지원할 수 있으므로
-  // 뷰어가 예측하지 않고, 단순히 "대화 생성 중" 인디케이터만 중앙에 표시한다.
-  const isWaitingForNextTurn = status === 'running' && events.length < maxTurns
+  // 다음 발화자: 마지막 이벤트의 next_speaker_clone_id 에서 결정.
+  // 첫 턴(이벤트 없음)은 엔진 내부 결정이라 뷰어가 알 수 없음 → 인디케이터 생략.
+  const nextTyping = (() => {
+    if (status !== 'running') return null
+    if (events.length >= maxTurns) return null
+    if (events.length === 0) return null
+    const last = events[events.length - 1]
+    const nextId = last.next_speaker_clone_id
+    if (!nextId) return null
+    const nextClone = participants.find((p) => p.id === nextId)
+    if (!nextClone) return null
+    return { clone: nextClone, side: sideOf(nextClone.id) }
+  })()
 
   return (
     <div className="space-y-4">
@@ -141,7 +151,12 @@ export function InteractionViewer({ interaction, initialEvents, participants }: 
             />
           )
         })}
-        {isWaitingForNextTurn && <TypingIndicator side="center" />}
+        {nextTyping && (
+          <TypingIndicator
+            speakerName={nextTyping.clone.name}
+            side={nextTyping.side}
+          />
+        )}
       </div>
 
       {status === 'completed' && (

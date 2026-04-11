@@ -15,7 +15,12 @@ export function MessageBubble({
   side,
   turnNumber,
 }: MessageBubbleProps) {
-  const cleanContent = content.replaceAll(END_PROMISE_MARKER, '').trim()
+  // 과거 데이터 호환: 엔진에서 이미 strip 되지만 구 이벤트에는 마커가 섞여 있을 수 있음
+  const cleanContent = content
+    .replaceAll(END_PROMISE_MARKER, '')
+    .replace(/<continue\s*\/?>/gi, '')
+    .replace(/<end\s*\/?>/gi, '')
+    .trim()
   return (
     <div
       className={cn(

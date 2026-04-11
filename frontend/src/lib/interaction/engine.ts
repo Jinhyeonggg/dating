@@ -1,10 +1,9 @@
 // frontend/src/lib/interaction/engine.ts
 import { callClaude } from '@/lib/claude'
 import { CLAUDE_MODELS, CLAUDE_LIMITS } from '@/lib/config/claude'
-import { INTERACTION_DEFAULTS } from '@/lib/config/interaction'
 import { buildSystemPrompt } from '@/lib/prompts/persona'
 import { buildFirstUserMessage } from '@/lib/prompts/interaction'
-import { remapHistoryForSpeaker, pickSpeaker } from './remap'
+import { remapHistoryForSpeaker } from './remap'
 import { shouldEnd } from './endCheck'
 import { createServiceClient } from '@/lib/supabase/service'
 import { AppError } from '@/lib/errors'
@@ -30,14 +29,61 @@ export interface RunInteractionResult {
   failureReason?: string
 }
 
+// 연속 발화 안전장치: 한 화자가 연속 발화할 수 있는 최대 턴 수
+const MAX_CONSECUTIVE_SAME_SPEAKER = 3
+
 /**
- * 20턴 대화 루프. 각 턴:
- * 1. pickSpeaker → 이번 발화자 결정
- * 2. remapHistoryForSpeaker → Claude messages 포맷
- * 3. 첫 턴이면 첫 user 메시지 prepend
- * 4. callClaude → 응답 텍스트
- * 5. interaction_events INSERT (service role, RLS 우회)
- * 6. shouldEnd 검사
+ * 다음 발화자 결정.
+ * - 이벤트가 비어 있으면 participants[0] (첫 발화자 = 메시지 시작자)
+ * - 마지막 이벤트의 next_speaker_clone_id 가 있으면 그걸 따른다
+ * - 없으면 교대 (backward compat)
+ * - 단, 같은 화자가 연속으로 MAX_CONSECUTIVE_SAME_SPEAKER번 말했으면 강제 교대
+ */
+function pickNextSpeaker(
+  events: InteractionEvent[],
+  participants: Clone[]
+): Clone {
+  if (events.length === 0) return participants[0]
+  const last = events[events.length - 1]
+
+  // 연속 발화 카운트
+  let consecutive = 1
+  for (let i = events.length - 2; i >= 0; i--) {
+    if (events[i].speaker_clone_id === last.speaker_clone_id) consecutive++
+    else break
+  }
+
+  const hinted = last.next_speaker_clone_id
+  const other =
+    participants.find((p) => p.id !== last.speaker_clone_id) ?? participants[0]
+
+  if (consecutive >= MAX_CONSECUTIVE_SAME_SPEAKER) return other
+  if (hinted) {
+    return participants.find((p) => p.id === hinted) ?? other
+  }
+  return other
+}
+
+const CONTINUE_MARKER_RE = /<continue\s*\/?>/gi
+const END_MARKER_RE = /<end\s*\/?>/gi
+
+/**
+ * Claude 응답에서 다음 발화자 힌트 파싱.
+ * 반환: { cleanContent, wantsContinue }
+ */
+function parseSpeakerHint(raw: string): {
+  cleanContent: string
+  wantsContinue: boolean
+} {
+  const hasContinue = CONTINUE_MARKER_RE.test(raw)
+  // Re-reset regex because /g state
+  CONTINUE_MARKER_RE.lastIndex = 0
+  const clean = raw.replace(CONTINUE_MARKER_RE, '').replace(END_MARKER_RE, '').trim()
+  return { cleanContent: clean, wantsContinue: hasContinue }
+}
+
+/**
+ * 20턴 대화 루프.
  */
 export async function runInteraction(
   input: RunInteractionInput
@@ -55,12 +101,8 @@ export async function runInteraction(
   if (existing) events.push(...(existing as InteractionEvent[]))
 
   try {
-    for (
-      let turn = events.length;
-      turn < input.maxTurns;
-      turn++
-    ) {
-      const speaker = pickSpeaker(input.participants, turn)
+    for (let turn = events.length; turn < input.maxTurns; turn++) {
+      const speaker = pickNextSpeaker(events, input.participants)
       const listener = input.participants.find((c) => c.id !== speaker.id)!
 
       const persona = speaker.persona_json
@@ -81,7 +123,7 @@ export async function runInteraction(
         history.push({ role: 'user', content: firstUserMessage })
       }
 
-      const content = await callClaude({
+      const rawContent = await callClaude({
         model: CLAUDE_MODELS.INTERACTION,
         system: systemPrompt,
         messages: history,
@@ -89,13 +131,27 @@ export async function runInteraction(
         temperature: 0.9,
       })
 
+      const { cleanContent, wantsContinue } = parseSpeakerHint(rawContent)
+
+      // 다음 발화자 결정
+      // 연속 제한에 걸렸으면 강제 교대
+      let consecutiveNow = 1
+      for (let i = events.length - 1; i >= 0; i--) {
+        if (events[i].speaker_clone_id === speaker.id) consecutiveNow++
+        else break
+      }
+      const forceSwitch = consecutiveNow >= MAX_CONSECUTIVE_SAME_SPEAKER
+      const nextSpeakerId =
+        wantsContinue && !forceSwitch ? speaker.id : listener.id
+
       const { data: inserted, error } = await admin
         .from('interaction_events')
         .insert({
           interaction_id: input.interactionId,
           turn_number: turn,
           speaker_clone_id: speaker.id,
-          content,
+          content: cleanContent,
+          next_speaker_clone_id: nextSpeakerId,
         })
         .select()
         .single()
@@ -105,13 +161,12 @@ export async function runInteraction(
       }
       events.push(inserted as InteractionEvent)
 
-      if (shouldEnd(events, input.maxTurns, content)) break
+      if (shouldEnd(events, input.maxTurns, cleanContent)) break
     }
 
     return { status: 'completed', turnsCompleted: events.length }
   } catch (err) {
-    const reason =
-      err instanceof Error ? err.message : String(err)
+    const reason = err instanceof Error ? err.message : String(err)
     return {
       status: 'failed',
       turnsCompleted: events.length,
