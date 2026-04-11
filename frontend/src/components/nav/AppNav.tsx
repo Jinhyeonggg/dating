@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { LogoutButton } from './LogoutButton'
+import { BackButton } from './BackButton'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -39,7 +40,8 @@ export async function AppNav() {
   return (
     <nav className="border-b bg-background">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-3">
+          <BackButton />
           <Link href="/clones" className="text-lg font-semibold">
             Digital Clone
           </Link>

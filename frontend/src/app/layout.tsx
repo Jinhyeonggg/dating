@@ -31,10 +31,12 @@ export default function RootLayout({
     >
       <body className="min-h-full">
         <NextTopLoader
-          color="hsl(var(--primary))"
+          color="#3b82f6"
           height={3}
           showSpinner={false}
-          shadow="0 0 8px hsl(var(--primary) / 0.4)"
+          shadow="0 0 10px rgba(59, 130, 246, 0.5), 0 0 5px rgba(59, 130, 246, 0.5)"
+          speed={200}
+          crawlSpeed={150}
         />
         <AppNav />
         {children}
