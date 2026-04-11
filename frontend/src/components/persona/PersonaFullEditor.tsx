@@ -28,22 +28,28 @@ export function PersonaFullEditor({
   return (
     <FormProvider {...methods}>
       <form onSubmit={methods.handleSubmit(onSubmit)} className="space-y-6">
-        <Tabs defaultValue={PERSONA_SECTIONS[0].category}>
-          <TabsList className="flex-wrap">
+        <Tabs
+          defaultValue={PERSONA_SECTIONS[0].category}
+          orientation="vertical"
+          className="gap-6"
+        >
+          <TabsList className="min-w-40 shrink-0">
             {PERSONA_SECTIONS.map((s) => (
               <TabsTrigger key={s.category} value={s.category}>
                 {s.label}
               </TabsTrigger>
             ))}
           </TabsList>
-          {PERSONA_SECTIONS.map((s) => (
-            <TabsContent key={s.category} value={s.category} className="mt-4">
-              <PersonaSection control={methods.control} category={s.category} />
-            </TabsContent>
-          ))}
+          <div className="flex-1 min-w-0">
+            {PERSONA_SECTIONS.map((s) => (
+              <TabsContent key={s.category} value={s.category}>
+                <PersonaSection control={methods.control} category={s.category} />
+              </TabsContent>
+            ))}
+          </div>
         </Tabs>
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 border-t pt-4">
           <Button type="submit" disabled={submitting}>
             {submitting ? '저장 중...' : '저장'}
           </Button>

@@ -4,9 +4,6 @@ import type { Clone } from '@/types/persona'
 
 export default async function ClonesPage() {
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
 
   const [mineResult, npcsResult] = await Promise.all([
     supabase
@@ -30,7 +27,9 @@ export default async function ClonesPage() {
     <main className="mx-auto max-w-5xl px-4 py-8">
       <header className="mb-6">
         <h1 className="text-2xl font-semibold">Clones</h1>
-        <p className="text-sm text-muted-foreground">{user?.email}</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          내 Clone과 NPC들을 둘러보고, 새 Clone을 만들어보세요.
+        </p>
       </header>
       <CloneList mine={mine} npcs={npcs} />
     </main>
