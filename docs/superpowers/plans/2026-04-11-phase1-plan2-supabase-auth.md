@@ -2,19 +2,21 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Supabase 로컬 환경 구동, 7개 테이블 마이그레이션 + RLS + NPC 5개 seed 생성, `@supabase/ssr` 기반 서버/브라우저 클라이언트 분리, 매직링크 로그인 플로우를 완성. 완료 시 `supabase start` 로 로컬 DB 동작, 로그인 페이지 → 매직링크 → 인증된 세션, Supabase Studio에서 7개 테이블 + NPC 5개 seed 확인 가능.
+**Goal:** Supabase **Cloud** 프로젝트 생성 및 링크, 8개 마이그레이션 (스키마 7개 + NPC seed 1개) 원격 적용, RLS 전부 활성화, `@supabase/ssr` 기반 서버/브라우저 클라이언트 분리, 매직링크 로그인 플로우 완성. 완료 시: Cloud Studio에서 7개 테이블 + NPC 5개 확인 가능, 로그인 페이지 → 실제 이메일 매직링크 → 인증된 세션 → `/clones` 리다이렉트.
 
-**Architecture:** Supabase CLI로 로컬 Postgres + Realtime 기동. `@supabase/ssr` 로 Next.js App Router 쿠키 기반 auth. Service role key는 서버 전용 (`lib/supabase/service.ts`), anon key + RLS는 사용자 컨텍스트 (`lib/supabase/server.ts`, `client.ts`). Next.js 16은 `proxy.ts` 사용 (not `middleware.ts`).
+**Architecture:** Supabase Cloud (managed Postgres + Auth + Realtime). Docker 불필요. `@supabase/ssr` 로 Next.js App Router 쿠키 기반 auth. Service role key는 서버 전용 (`lib/supabase/service.ts`), anon key + RLS는 사용자 컨텍스트 (`lib/supabase/server.ts`, `client.ts`). Next.js 16은 `proxy.ts` 사용 (not `middleware.ts`).
 
-**Tech Stack:** Supabase CLI, Supabase Postgres (local Docker), `@supabase/supabase-js`, `@supabase/ssr`, Next.js 16 proxy.ts
+**Tech Stack:** Supabase CLI (원격 관리용), Supabase Cloud (free tier), `@supabase/supabase-js`, `@supabase/ssr`, Next.js 16 proxy.ts
 
 **Spec Reference:** `docs/superpowers/specs/2026-04-11-phase1-digital-clone-design.md` §2 (데이터 모델), §3 (인증)
 
 **Domain Skill:** `.claude/skills/db-schema/SKILL.md` — 테이블 구조, RLS 전략, n-to-n 확장 체크리스트
 
-**Prerequisites (사용자가 직접 설치):**
-- **Docker Desktop** 실행 중 (Supabase 로컬은 Docker 필요)
-- **Supabase CLI**: `brew install supabase/tap/supabase` (이미 설치된 경우 skip)
+**Prerequisites (사용자가 직접 수행):**
+- **Supabase 계정** — [supabase.com](https://supabase.com) 가입 (GitHub 계정으로 가능)
+- **Supabase Cloud 프로젝트 1개 생성** (무료 티어)
+- **Supabase CLI**: `brew install supabase/tap/supabase` (원격 프로젝트 링크·마이그레이션용)
+- **Docker는 불필요** (Cloud 사용)
 
 ---
 
@@ -27,15 +29,15 @@ frontend/
 ├── .gitignore                                   [modify] — .env.local, supabase/.temp
 ├── supabase/
 │   ├── config.toml                              [auto, from `supabase init`]
-│   ├── migrations/
-│   │   ├── 20260411000001_init_profiles.sql    [create]
-│   │   ├── 20260411000002_init_clones.sql      [create]
-│   │   ├── 20260411000003_init_clone_memories.sql [create]
-│   │   ├── 20260411000004_init_interactions.sql   [create]
-│   │   ├── 20260411000005_init_analyses.sql       [create]
-│   │   ├── 20260411000006_enable_rls.sql          [create]
-│   │   └── 20260411000007_enable_realtime.sql     [create]
-│   └── seed.sql                                 [create] — NPC 5개
+│   └── migrations/
+│       ├── 20260411000001_init_profiles.sql    [create]
+│       ├── 20260411000002_init_clones.sql      [create]
+│       ├── 20260411000003_init_clone_memories.sql [create]
+│       ├── 20260411000004_init_interactions.sql   [create]
+│       ├── 20260411000005_init_analyses.sql       [create]
+│       ├── 20260411000006_enable_rls.sql          [create]
+│       ├── 20260411000007_enable_realtime.sql     [create]
+│       └── 20260411000008_seed_npc_clones.sql     [create] — NPC 5개를 마이그레이션으로 주입 (Cloud는 seed.sql 자동 실행 안 함)
 ├── src/
 │   ├── lib/supabase/
 │   │   ├── server.ts                            [create] — Server Component 클라이언트
@@ -56,59 +58,74 @@ frontend/
 
 ---
 
-## Milestone A: Supabase 로컬 환경
+## Milestone A: Supabase Cloud 설정
 
-### Task A1: Supabase CLI 확인 & 초기화
+### Task A1: Cloud 프로젝트 생성 (사용자 수행)
+
+**(자동화 불가 — 사용자가 브라우저에서 직접 수행)**
+
+- [ ] **Step 1: Supabase 가입/로그인**
+
+브라우저에서 [supabase.com](https://supabase.com) → 로그인/가입 (GitHub 계정 권장).
+
+- [ ] **Step 2: 새 프로젝트 생성**
+
+Dashboard → "New project"
+- **Name**: `digital-clone-platform` (자유)
+- **Database Password**: 강한 패스워드 생성 후 **반드시 기록** (비밀번호는 나중에 복구 어려움)
+- **Region**: `Northeast Asia (Seoul)` 권장
+- **Pricing Plan**: Free
+
+생성에 1-2분 소요.
+
+- [ ] **Step 3: 프로젝트 자격증명 기록**
+
+프로젝트 대시보드 → Settings → API 에서 다음 값 복사:
+- **Project URL** (예: `https://abcdefghij.supabase.co`)
+- **Project Reference ID** (URL 앞부분, 예: `abcdefghij`)
+- **anon / public key** (긴 JWT)
+- **service_role / secret key** (긴 JWT, **서버 전용**)
+
+네 값 모두 안전한 곳에 기록.
+
+---
+
+### Task A2: Supabase CLI 설치 & 프로젝트 링크
 
 **Files:**
 - Create: `frontend/supabase/config.toml` (via `supabase init`)
 
-- [ ] **Step 1: Docker Desktop 실행 확인**
-
-Run: `docker info`
-Expected: Docker 정보 출력. 실패 시 Docker Desktop을 실행하고 재시도.
-
-- [ ] **Step 2: Supabase CLI 버전 확인**
+- [ ] **Step 1: CLI 설치 확인**
 
 Run: `supabase --version`
-Expected: 버전 출력 (예: `1.x.x`). 없으면 `brew install supabase/tap/supabase` 실행.
+Expected: 버전 출력. 없으면 설치:
+```bash
+brew install supabase/tap/supabase
+```
 
-- [ ] **Step 3: Supabase 프로젝트 초기화**
+- [ ] **Step 2: CLI 로그인**
+
+Run: `supabase login`
+Expected: 브라우저로 리다이렉트 → 인증 → "Finished supabase login" 메시지.
+
+- [ ] **Step 3: 프로젝트 초기화**
 
 Run (in `frontend/`): `supabase init`
-Expected: `frontend/supabase/config.toml` 생성. 프롬프트가 VS Code 설정 등을 물으면 기본값(N) 선택.
+Expected: `frontend/supabase/config.toml` 생성. 프롬프트는 기본값(N) 선택.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 4: 원격 프로젝트 링크**
+
+Run (in `frontend/`): `supabase link --project-ref <A1에서 기록한 Project Reference ID>`
+
+프롬프트로 DB password 요구 시 A1에서 기록한 값 입력.
+Expected: "Finished supabase link" 또는 유사 메시지.
+
+- [ ] **Step 5: Commit**
 
 ```bash
 git add frontend/supabase/
-git commit -m "chore: initialize supabase local project"
+git commit -m "chore: initialize supabase project and link to cloud"
 ```
-
----
-
-### Task A2: Supabase 로컬 기동
-
-- [ ] **Step 1: supabase start**
-
-Run (in `frontend/`): `supabase start`
-Expected: Docker 컨테이너들 시작, 마지막에 출력:
-```
-API URL: http://127.0.0.1:54321
-DB URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
-Studio URL: http://127.0.0.1:54323
-...
-anon key: eyJhbG...
-service_role key: eyJhbG...
-```
-
-**중요**: 출력된 `anon key`, `service_role key`, `API URL` 값을 기록해두세요 (Task A3에 사용).
-
-- [ ] **Step 2: Supabase Studio 확인**
-
-브라우저로 `http://127.0.0.1:54323` 열기. 빈 Table Editor가 보여야 함.
-
-- [ ] **Step 3: 정지는 `supabase stop`** (지금은 실행 상태 유지)
 
 ---
 
@@ -122,8 +139,8 @@ service_role key: eyJhbG...
 - [ ] **Step 1: .env.local.example 작성**
 
 ```
-# Supabase (local)
-NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
+# Supabase (cloud)
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
 
@@ -133,12 +150,12 @@ ANTHROPIC_API_KEY=your-anthropic-key-here
 
 - [ ] **Step 2: .env.local 작성**
 
-Task A2에서 기록한 실제 값을 붙여넣기:
+Task A1에서 기록한 **실제 Cloud 값**을 붙여넣기:
 ```
-NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
-NEXT_PUBLIC_SUPABASE_ANON_KEY=<A2 output의 anon key>
-SUPABASE_SERVICE_ROLE_KEY=<A2 output의 service_role key>
-ANTHROPIC_API_KEY=<비워두거나 placeholder>
+NEXT_PUBLIC_SUPABASE_URL=<A1 Project URL>
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<A1 anon key>
+SUPABASE_SERVICE_ROLE_KEY=<A1 service_role key>
+ANTHROPIC_API_KEY=
 ```
 
 - [ ] **Step 3: .gitignore 확인·보강**
@@ -158,7 +175,7 @@ supabase/.branches/
 
 ```bash
 git add frontend/.env.local.example frontend/.gitignore
-git commit -m "chore: add .env.local.example and gitignore supabase local artifacts"
+git commit -m "chore: add .env.local.example and gitignore supabase artifacts"
 ```
 
 ---
@@ -203,14 +220,14 @@ create trigger profiles_set_updated_at
   for each row execute function public.set_updated_at();
 ```
 
-- [ ] **Step 2: 마이그레이션 적용 테스트**
+- [ ] **Step 2: 마이그레이션 Cloud 적용**
 
-Run (in `frontend/`): `supabase db reset`
-Expected: 모든 마이그레이션 재실행, 에러 없음.
+Run (in `frontend/`): `supabase db push`
+Expected: 새 마이그레이션을 Cloud에 적용, "Applying migration ..." 출력, 에러 없음.
 
-- [ ] **Step 3: Studio에서 테이블 확인**
+- [ ] **Step 3: Cloud Studio에서 테이블 확인**
 
-`http://127.0.0.1:54323` → Table Editor → `public.profiles` 존재 확인.
+브라우저에서 Supabase 프로젝트 대시보드 → Table Editor → `public.profiles` 존재 확인.
 
 - [ ] **Step 4: Commit**
 
@@ -262,7 +279,7 @@ comment on table public.clones is 'Digital clone personas (user-owned or NPC)';
 
 - [ ] **Step 2: 재적용**
 
-Run: `supabase db reset`
+Run: `supabase db push`
 Expected: 에러 없음.
 
 - [ ] **Step 3: Studio에서 확인**
@@ -308,7 +325,7 @@ comment on table public.clone_memories is 'Episodic memories for clones (natural
 
 - [ ] **Step 2: 재적용 + Studio 확인**
 
-Run: `supabase db reset`
+Run: `supabase db push`
 
 - [ ] **Step 3: Commit**
 
@@ -379,7 +396,7 @@ comment on table public.interaction_events is 'Individual turns (messages) in an
 
 - [ ] **Step 2: 재적용 + Studio 확인**
 
-Run: `supabase db reset`
+Run: `supabase db push`
 Expected: 3개 테이블(`interactions`, `interaction_participants`, `interaction_events`) 생성.
 
 - [ ] **Step 3: Commit**
@@ -418,7 +435,7 @@ comment on table public.analyses is 'Compatibility analysis reports for interact
 
 - [ ] **Step 2: 재적용 + 확인**
 
-Run: `supabase db reset`
+Run: `supabase db push`
 
 - [ ] **Step 3: Commit**
 
@@ -563,7 +580,7 @@ create policy "analyses_participant_select" on public.analyses
 
 - [ ] **Step 2: 재적용**
 
-Run: `supabase db reset`
+Run: `supabase db push`
 Expected: 에러 없이 모든 정책 생성.
 
 - [ ] **Step 3: Studio에서 정책 확인**
@@ -599,7 +616,7 @@ alter publication supabase_realtime add table public.interactions;
 
 - [ ] **Step 2: 재적용**
 
-Run: `supabase db reset`
+Run: `supabase db push`
 
 - [ ] **Step 3: Commit**
 
@@ -610,17 +627,20 @@ git commit -m "feat(db): enable realtime for interaction_events and interactions
 
 ---
 
-### Task D2: NPC seed
+### Task D2: NPC seed (마이그레이션 방식)
 
 **Files:**
-- Create: `frontend/supabase/seed.sql`
+- Create: `frontend/supabase/migrations/20260411000008_seed_npc_clones.sql`
 
-- [ ] **Step 1: seed.sql 작성**
+**왜 마이그레이션인가**: Supabase Cloud에서는 `seed.sql`이 자동 실행되지 않음 (`supabase db reset --linked`를 명시 호출해야 함, 이는 DB 파괴적). NPC는 **reference data**(불변 seed)이므로 마이그레이션에 두어 `supabase db push` 시 한 번 적용되면 충분. 이후 유저 데이터가 쌓여도 영향 없음.
+
+- [ ] **Step 1: 마이그레이션 작성**
 
 ```sql
--- frontend/supabase/seed.sql
+-- 20260411000008_seed_npc_clones.sql
 -- NPC 5개: 지민, 태현, 서연, 민재, 하린
 -- 각 NPC는 is_npc=true, user_id=null
+-- ON CONFLICT DO NOTHING — 재실행 안전
 
 insert into public.clones (id, is_npc, user_id, name, persona_json, is_active)
 values
@@ -828,29 +848,26 @@ values
     'tags', array['활동가', '가치 드리븐', '비건']::text[]
   ),
   true
-);
-
--- NPC 이름과 자기소개를 로그로 확인하기 쉽게
-select id, name, persona_json->>'occupation' as occupation
-from public.clones
-where is_npc = true
-order by name;
+)
+on conflict (id) do nothing;
 ```
 
-- [ ] **Step 2: seed 적용**
+**중요**: `insert ... values (...)`의 마지막 행 괄호 뒤에 (세미콜론 대신) `on conflict (id) do nothing;` 를 추가한 것. 위 예시 5개 NPC 블록 전체 뒤에 붙인다. 이렇게 하면 이미 존재하는 UUID는 건너뛰어 재실행 안전.
 
-Run: `supabase db reset`
-Expected: 마지막에 SELECT 결과 출력 — 5명 NPC 목록.
+- [ ] **Step 2: Cloud 적용**
 
-- [ ] **Step 3: Studio에서 확인**
+Run (in `frontend/`): `supabase db push`
+Expected: `Applying migration 20260411000008_seed_npc_clones.sql` 출력.
 
-Studio → Table Editor → `clones` → 5개 행이 `is_npc=true`, `user_id=null`로 보여야 함.
+- [ ] **Step 3: Cloud Studio에서 확인**
+
+Supabase 프로젝트 대시보드 → Table Editor → `clones`. 5개 행이 `is_npc=true`, `user_id=null`, `name` 필드에 지민/태현/서연/민재/하린 보여야 함.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add frontend/supabase/seed.sql
-git commit -m "feat(db): seed 5 NPC clones with rich personas"
+git add frontend/supabase/migrations/20260411000008_seed_npc_clones.sql
+git commit -m "feat(db): seed 5 NPC clones via migration (idempotent)"
 ```
 
 ---
@@ -1356,7 +1373,9 @@ Expected: `/login` 으로 자동 리다이렉트 (proxy 동작 증명).
 `/login` 에서 본인 이메일 입력 → "매직링크 보내기"
 Expected: "매직링크를 보냈습니다" 메시지.
 
-**로컬 Supabase는 이메일을 실제 발송하지 않고** `http://127.0.0.1:54324/` (Inbucket)에서 확인. 브라우저로 Inbucket 열기 → 매직링크 메시지 확인 → "Log In" 링크 클릭.
+Supabase Cloud는 **실제 이메일을 발송**합니다. 본인 이메일 수신함 확인 → 매직링크 이메일 ("Confirm your signup" 또는 "Sign in to ...") → "Log In" 또는 "Confirm your email" 링크 클릭.
+
+> 만약 이메일이 스팸함에 있거나 10분이 지나도 안 오면: Cloud 프로젝트 대시보드 → Authentication → Providers → Email 설정 확인. 또는 Authentication → Users 에서 수동으로 사용자 생성 테스트.
 
 - [ ] **Step 4: 인증 후 리다이렉트 확인**
 
@@ -1365,7 +1384,7 @@ Expected: `/clones` 페이지로 이동, "로그인됨: your@email.com" 표시.
 
 - [ ] **Step 5: Studio에서 auth.users 확인**
 
-`http://127.0.0.1:54323` → Authentication → Users. 본인 이메일이 목록에 있어야 함.
+Supabase 프로젝트 대시보드 → Authentication → Users. 본인 이메일이 목록에 있어야 함.
 
 - [ ] **Step 6: NPC 확인**
 
@@ -1420,9 +1439,10 @@ git log --oneline feat/phase1-plan1-foundation | head -30
 
 **Risks flagged:**
 1. **Next.js 16 proxy.ts**: 최신 API. 만약 `proxy.ts` 가 미지원이면 `middleware.ts`로 폴백 (동일 내용).
-2. **Docker 필수**: `supabase start` 가 Docker 없이는 실패. 사용자 확인 필요.
-3. **로컬 이메일 발송 안 됨**: Inbucket(`:54324`)에서 확인 필수 — 실제 이메일 수신하지 않음 헷갈릴 수 있음.
+2. **Cloud 프로젝트 자격증명 관리**: `SUPABASE_SERVICE_ROLE_KEY`는 RLS를 우회하므로 절대 클라이언트에 노출 금지. 서버 코드(`lib/supabase/service.ts`)에서만 사용.
+3. **실제 이메일 발송 한도**: Supabase 무료 티어는 시간당 이메일 발송 제한 있음. 테스트 반복 시 주의.
 4. **persona_json 스키마 진화**: JSONB라 마이그레이션 없이 필드 추가 가능. 단 체크 제약 없음 (Zod로 런타임 검증).
+5. **마이그레이션 롤백 어려움**: `supabase db push`는 Cloud DB에 직접 적용. 잘못된 마이그레이션은 새 마이그레이션으로 수정해야 함 (프로덕션 롤백 복잡). Plan 2 실행 중엔 신규 프로젝트라 부담 적음.
 
 ---
 
