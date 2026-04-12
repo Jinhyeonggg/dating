@@ -21,6 +21,7 @@ export interface RunInteractionInput {
   }
   setting: string | null
   maxTurns: number
+  prebuiltPrompts?: Map<string, string>
 }
 
 export interface RunInteractionResult {
@@ -107,7 +108,8 @@ export async function runInteraction(
 
       const persona = speaker.persona_json
       const memories = input.memoriesByClone.get(speaker.id) ?? []
-      const systemPrompt = buildSystemPrompt(persona, memories)
+      const systemPrompt = input.prebuiltPrompts?.get(speaker.id)
+        ?? buildSystemPrompt(persona, memories)
 
       const history = remapHistoryForSpeaker(events, speaker.id, cloneNames)
 
@@ -121,6 +123,12 @@ export async function runInteraction(
           selfName: speaker.name,
         })
         history.push({ role: 'user', content: firstUserMessage })
+      }
+
+      // Claude 4.6은 assistant prefill 미지원 → 연속 발화 시
+      // history가 assistant 메시지로 끝나면 continuation prompt 추가
+      if (history.length > 0 && history[history.length - 1].role === 'assistant') {
+        history.push({ role: 'user', content: '(이어서 말해)' })
       }
 
       const rawContent = await callClaude({
