@@ -5,10 +5,11 @@ import { CloneCard } from './CloneCard'
 
 interface CloneListProps {
   mine: Clone[]
+  community: Clone[]
   npcs: Clone[]
 }
 
-export function CloneList({ mine, npcs }: CloneListProps) {
+export function CloneList({ mine, community, npcs }: CloneListProps) {
   return (
     <div className="space-y-8">
       <section>
@@ -25,7 +26,20 @@ export function CloneList({ mine, npcs }: CloneListProps) {
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {mine.map((c) => (
-              <CloneCard key={c.id} clone={c} />
+              <CloneCard key={c.id} clone={c} badge="mine" />
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section>
+        <h2 className="mb-4 text-xl font-semibold">커뮤니티</h2>
+        {community.length === 0 ? (
+          <p className="text-sm text-muted-foreground">아직 공개된 Clone이 없습니다.</p>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {community.map((c) => (
+              <CloneCard key={c.id} clone={c} badge="community" />
             ))}
           </div>
         )}
@@ -35,7 +49,7 @@ export function CloneList({ mine, npcs }: CloneListProps) {
         <h2 className="mb-4 text-xl font-semibold">NPC Clone</h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {npcs.map((c) => (
-            <CloneCard key={c.id} clone={c} />
+            <CloneCard key={c.id} clone={c} badge="npc" />
           ))}
         </div>
       </section>

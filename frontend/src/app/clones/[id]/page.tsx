@@ -7,6 +7,7 @@ import { CloneNpcBadge } from '@/components/clone/CloneNpcBadge'
 import { DeleteCloneButton } from '@/components/clone/DeleteCloneButton'
 import { NewInteractionHero } from '@/components/interaction/NewInteractionHero'
 import { buttonVariants } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { MemoryInputBox } from '@/components/memory/MemoryInputBox'
 import { MemoryTimeline } from '@/components/memory/MemoryTimeline'
@@ -62,9 +63,15 @@ export default async function CloneDetailPage({ params }: PageProps) {
       </div>
 
       <Card className="mb-6 p-6">
-        {clone.is_npc && (
+        {(clone.is_npc || (!isOwner && !clone.is_npc)) && (
           <div className="mb-4">
-            <CloneNpcBadge />
+            {clone.is_npc ? (
+              <CloneNpcBadge />
+            ) : (
+              <Badge variant="outline" className="text-xs">
+                커뮤니티
+              </Badge>
+            )}
           </div>
         )}
         <PersonaSummaryCard persona={clone.persona_json} />

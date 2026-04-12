@@ -32,6 +32,8 @@ function makeClone(id: string, name: string): Clone {
     },
     system_prompt: null,
     is_active: true,
+    is_public: false,
+    public_fields: null,
     created_at: '',
     updated_at: '',
   }

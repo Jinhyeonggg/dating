@@ -87,6 +87,8 @@ export interface Clone {
   id: string
   user_id: string | null
   is_npc: boolean
+  is_public: boolean
+  public_fields: string[] | null
   version: number
   name: string
   persona_json: Persona
