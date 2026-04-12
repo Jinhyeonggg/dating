@@ -7,7 +7,7 @@ import { OnboardingCard } from './OnboardingCard'
 import { TraitsPreview } from './TraitsPreview'
 import type { OnboardingAnswer, InferredTraits } from '@/types/onboarding'
 
-type Phase = 'questions' | 'analyzing' | 'preview'
+type Phase = 'questions' | 'analyzing' | 'error' | 'preview'
 
 interface OnboardingFlowProps {
   cloneId: string
@@ -56,7 +56,7 @@ export function OnboardingFlow({ cloneId }: OnboardingFlowProps) {
       setPhase('preview')
     } catch (e) {
       setError(e instanceof Error ? e.message : '알 수 없는 오류')
-      setPhase('questions')
+      setPhase('error')
     }
   }
 
@@ -76,9 +76,36 @@ export function OnboardingFlow({ cloneId }: OnboardingFlowProps) {
   if (phase === 'analyzing') {
     return (
       <div className="mx-auto max-w-lg py-20 text-center">
-        <div className="mb-4 text-2xl">분석 중...</div>
-        <p className="text-sm text-muted-foreground">응답을 분석하고 있습니다</p>
-        {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
+        <div className="mb-4 flex items-center justify-center gap-2 text-2xl">
+          <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          분석 중...
+        </div>
+        <p className="text-sm text-muted-foreground">AI가 응답을 분석하고 있습니다. 최대 10초 정도 걸릴 수 있어요.</p>
+      </div>
+    )
+  }
+
+  if (phase === 'error') {
+    return (
+      <div className="mx-auto max-w-lg py-20 text-center">
+        <div className="mb-4 text-2xl">분석 실패</div>
+        <p className="text-sm text-destructive">{error ?? '알 수 없는 오류가 발생했습니다'}</p>
+        <div className="mt-6 flex justify-center gap-3">
+          <button
+            type="button"
+            onClick={() => { setError(null); setPhase('questions'); setCurrentIndex(questions.length - 1) }}
+            className="rounded-md border px-4 py-2 text-sm hover:bg-muted"
+          >
+            다시 시도
+          </button>
+          <button
+            type="button"
+            onClick={() => router.push(`/clones/${cloneId}`)}
+            className="rounded-md border px-4 py-2 text-sm text-muted-foreground hover:bg-muted"
+          >
+            나중에 하기
+          </button>
+        </div>
       </div>
     )
   }
