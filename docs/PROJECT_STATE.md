@@ -1,7 +1,7 @@
 # Project State — Digital Clone Platform
 
 > **Living document.** 매 Phase 끝에 업데이트. 새 대화를 시작할 때 가장 먼저 읽어야 할 문서.
-> 마지막 업데이트: **2026-04-12** (Phase 1 완료 시점)
+> 마지막 업데이트: **2026-04-12** (Phase 2 P0 완료 시점)
 
 ---
 
@@ -9,10 +9,10 @@
 
 | 항목 | 상태 |
 |---|---|
-| 현재 단계 | **Phase 1 ✅ 완료** |
+| 현재 단계 | **Phase 2 P0 ✅ 완료** (Realism & World Context) |
 | 프로덕션 배포 | ✅ `https://frontend-eta-neon-97.vercel.app` |
 | 마지막 태그 | `phase1-complete` |
-| 다음 단계 | Phase 2 설계 대기 |
+| 다음 단계 | Phase 2 P2 (Matching 기반 Batch Simulation) |
 | 기본 브랜치 | `main` |
 | 기술 스택 | Next.js 16 · TypeScript · Tailwind v4 · Supabase Cloud · Anthropic Claude · Vercel |
 
@@ -26,6 +26,8 @@
 - Plan 3: Clone CRUD + Persona UI — 데이터 드리븐 폼, 페이지 4개, API (`plan3-clone-ui-complete`)
 - Plan 4: Interaction Engine + Realtime Viewer — 20턴 엔진, API, 뷰어, realism 프롬프트 (`plan4-interaction-complete`)
 - Plan 5: Memory + Analysis — 메모리 추출(Haiku), 호환성 분석(Sonnet, 캐시), UI (`plan5-memory-analysis-complete`)
+
+- Plan 6: Realism & World Context — 스타일 카드, mood roll, world context, texture rules, dev CLI (`phase2-p0-realism`)
 
 모든 Plan 문서: `docs/superpowers/plans/2026-04-*.md`
 
@@ -48,7 +50,11 @@
 - `GET|POST /api/interactions` / `GET|DELETE /api/interactions/[id]` / `POST /api/interactions/[id]/run`
 - `GET|POST /api/memories`
 - `POST /api/analyses` / `GET /api/analyses/[id]`
+- `GET|POST /api/world-context` / `DELETE /api/world-context/[id]` / `POST /api/world-context/copy`
 - `GET /auth/callback`
+
+**Admin**:
+- `/admin/world` — world context 수동 관리 (ADMIN_USER_IDS env var 기반 접근 제어)
 
 ### 주요 모듈
 
@@ -59,10 +65,15 @@
 - `interaction/remap.ts` — `remapHistoryForSpeaker`, `pickSpeaker` 순수 함수
 - `memory/{service,extract}.ts` — Haiku 추출 서비스 + 파싱/정규화 순수 함수
 - `analysis/{service,parse,prompt}.ts` — Sonnet 분석 서비스 (캐시) + 파싱/프롬프트 순수 함수
-- `prompts/{persona,behavior,interaction,memory}.ts` — 모든 프롬프트 템플릿
-- `config/{claude,interaction,analysis}.ts` — 상수 (모델명, 턴 수, 시나리오, 카테고리)
+- `prompts/{persona,behavior,interaction,memory,texture,mood}.ts` — 프롬프트 템플릿 + 텍스처 규칙
+- `styles/{types,index,match}.ts` + `styles/cards/*.ts` — 스타일 카드 시스템 (6장 시드, 4-tier matcher)
+- `mood/{types,parse,fallback,roll}.ts` — Session-start mood roll (Haiku + code fallback)
+- `world/{types,collect,inject}.ts` — 외부 세계 context 수집 + 프롬프트 주입
+- `interaction/orchestrate.ts` — modulator 조립 (mood + cards + world → enhanced prompt)
+- `admin/guard.ts` — env var 기반 admin 체크
+- `config/{claude,interaction,analysis}.ts` — 상수 (모델명, 턴 수, 시나리오, 카테고리, realism defaults)
 - `constants/personaFields.ts` — `PERSONA_SECTIONS` 메타데이터 (폼·프롬프트 공유)
-- `validation/*.ts` — Zod 스키마 4종
+- `validation/*.ts` — Zod 스키마 5종 (worldContext 추가)
 - `errors.ts` — `AppError` + `errors` 팩토리
 
 **`components/`**:
@@ -76,7 +87,7 @@
 
 ### DB 스키마 (Supabase Cloud: `qegpqadsxujgmodocsme`)
 
-테이블: `profiles`, `clones`, `clone_memories`, `interactions`, `interaction_participants`, `interaction_events`, `analyses`
+테이블: `profiles`, `clones`, `clone_memories`, `interactions`, `interaction_participants`, `interaction_events`, `analyses`, `world_context`
 
 **마이그레이션 9개**:
 1. `20260411000001_init_profiles.sql`
@@ -90,10 +101,12 @@
 9. `20260412000001_fix_rls_recursion.sql` — `interaction_is_mine(uuid)` SECURITY DEFINER 헬퍼로 재귀 제거
 10. `20260412000002_next_speaker_column.sql` — `interaction_events.next_speaker_clone_id`
 
+11. `20260413000001_world_context.sql` — `world_context` 테이블 + RLS (Phase 2 P0)
+
 모든 마이그레이션 Supabase Cloud 적용 완료.
 
 ### 테스트
-- Vitest 53개 passing
+- Vitest 128개 passing (Phase 1: 53 + Phase 2 P0: 75)
 - 순수 함수 전부 TDD 커버
 - UI / API / Supabase / Claude 호출은 수동 검증
 
@@ -107,6 +120,7 @@
   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
   - `SUPABASE_SERVICE_ROLE_KEY`
   - `ANTHROPIC_API_KEY`
+  - `ADMIN_USER_IDS` (Production only)
 
 ### 인증
 - Supabase Auth + Google OAuth (console.cloud.google.com 프로젝트 생성, Supabase Provider 활성화)
@@ -134,6 +148,11 @@
 | `<continue/>` / `<end/>` 마커 | `<promise>END</promise>` 와 동일 패턴. 프롬프트에서 강제 |
 | `InteractionProgressBar` / `ScoreBar` 만 inline `style` 허용 | dynamic % 필요. 다른 곳에서는 Tailwind 유틸만 |
 | UI 안정성 규칙 | 카드/탭/스크롤바 레이아웃 점프 금지 — `h-full`, `min-h`, `\u00A0`, `scrollbar-gutter: stable` 등 |
+| Mood는 tint, not driver | session-start 1회 주입, 1~2줄 자연어만. 수치는 prompt에 금지. 대화 중 drift 허용 |
+| 스타일 카드는 TS 파일로 관리 | DB 아닌 `lib/styles/cards/*.ts`. 50장 넘어가면 DB 이관 재검토 |
+| World context 수동 큐레이션 | v1은 `/admin/world`에서 수동. 미래에 뉴스 API 자동 수집으로 전환 예정. collection vs injection 분리 |
+| Admin은 env var 기반 | `ADMIN_USER_IDS` env var. DB 컬럼 아님. 간단함 우선 |
+| Claude 4.6 assistant prefill 미지원 | 연속 발화 시 history가 assistant로 끝나면 `(이어서 말해)` continuation prompt 추가 |
 
 ---
 
@@ -145,49 +164,54 @@
 - **우회책**: 3초 polling fallback (`GET /api/interactions/[id]` 에서 events 배열 전체 다시 fetch + 머지). Realtime 실패해도 UX 유지
 - **Phase 2 TODO**: 근본 원인 조사, 재연결 정책 개선
 
-### 2. Clone 시뮬레이션 현실감
-- **증상**: 대화가 평탄하게 진행, 모든 조합이 비슷한 톤으로 수렴. 페르소나별 말투 차이 약함
-- **원인**:
-  - NPC seed 의 페르소나 core 정보가 충분히 구체적이지 않음
-  - 외부 맥락(그날 이벤트, 뉴스, 상대방에 대한 선지식) 부재
-  - 랜덤성(기분, 태도) 없음
-- **우회책**: 없음. Phase 2 최우선 과제
-- **유저 제안** (미결정):
-  - 클론 정보 세부 입력 (입력 장벽 큼)
-  - 기분·태도 랜덤성 주입 (make-sense 수준)
-  - 외부 환경 context (뉴스/SNS, 규모 큼)
+### 2. Clone 시뮬레이션 현실감 — Phase 2 P0에서 대폭 개선
+- **이전 증상**: 대화가 평탄, 모든 조합 비슷한 톤, 페르소나별 말투 차이 약함
+- **P0 해결책**:
+  - 메시지 텍스처 규칙 (register-aware: 존댓말/반말 구분)
+  - 스타일 카드 6장 시드 + 4-tier persona 매칭
+  - Session-start mood roll (Haiku) → 세션마다 다른 톤
+  - World context 수동 큐레이션 (`/admin/world`)
+  - Dev CLI (`npm run interact`) 로 튜닝 루프 지원
+- **현재 상태**: 기본 인프라 완성, 지속적 튜닝으로 개선 중
+- **잔여 이슈**: 스타일 카드 다양성 확대 필요, 연속 발화 빈도 목표치(30%) 미달
 
 ### 3. Supabase 이메일 매직링크 rate limit
 - **증상**: 반복 테스트 시 "email rate limit exceeded" (시간당 3-4통)
 - **우회책**: Google OAuth 로 로그인 (현재 주 로그인 수단)
 - **Phase 2 TODO (선택)**: Resend/SendGrid 커스텀 SMTP 연결로 rate limit 우회
 
-### 4. Dev CLI 스크립트의 realism 튜닝 루프 미수행
-- **상태**: Plan 4 Group B.4 의 1차 튜닝은 smoke test 1회만 실시. Group G.2 2차 체크리스트 평가도 체계적으로 안 함
-- **영향**: 위 이슈 2번과 연결. 현실감 개선 여지 많음
-- **Phase 2 TODO**: realism 체크리스트 8개 항목 기반 체계적 튜닝
+### 4. Dev CLI 스크립트의 realism 튜닝 루프 — Phase 2 P0에서 해결
+- **상태**: `npm run interact` CLI 완성. NPC 이름/번호 축약, clone 이름 검색, 자동 체크리스트 평가 지원
+- **Round 1 결과**: 마침표 0%, 감정 자음 40%, 문어체 접속사 0회 (PASS). 연속 메시지 20% (FAIL — 목표 30%)
+- **현재**: 유저가 `texture.ts` / `styles/cards/` 수정 → CLI 재실행으로 지속 튜닝 중
 
 ---
 
 ## Phase 2 백로그
 
-### High priority (사용자 가치 직결)
-1. **시뮬레이션 현실감 개선** — 랜덤성, 외부 맥락, 페르소나 말투 차별화
-2. **Realtime 안정화** — 근본 원인 조사 + polling fallback 제거
-3. **Memory compaction** — 메모리 많아지면 토큰 낭비. 자동 요약
-4. **분석 리포트 고도화** — 더 다양한 카테고리, 시각화, 차트
+### P0 ✅ 완료 — Realism & World Context
+- 메시지 텍스처 규칙 (register-aware)
+- 스타일 카드 시스템 (6장 시드 + 4-tier matcher)
+- Session-start mood roll (Haiku + fallback)
+- World context 수동 큐레이션 + `/admin/world`
+- Dev CLI 튜닝 루프
+- Spec: `docs/superpowers/specs/2026-04-12-phase2-p0-realism-world-context-design.md`
+- Plan: `docs/superpowers/plans/2026-04-12-phase2-p0-realism-world-context.md`
 
-### Mid priority
-5. **배치 실행** — "내 Clone × 모든 NPC" 한 번에 + 랭킹 뷰
-6. **Clone 버전 관리 UI** — `clones.version` 컬럼은 존재, UI 없음
-7. **Memory 편집/삭제 UI** — 현재는 추가만
-8. **시나리오 커스텀** — 현재 3개 하드코딩, 사용자 직접 작성
+### P2 — Matching 기반 Batch Simulation (다음)
+- Persona 기반 top-k 후보 선정 (태그 overlap → 나중에 embedding)
+- 선정된 후보와 일괄 시뮬레이션 + 랭킹 뷰
+- 분석 리포트 카테고리/시각화 확장
 
-### Low priority / 후순위
-9. **토큰 단위 SSE 스트리밍** — 턴 INSERT 기반보다 체감 개선
-10. **커스텀 SMTP** — Resend/SendGrid, rate limit 우회
-11. **민감 정보 toggle UI** — `past_relationships_summary`, `beliefs`
-12. **OG image, SEO** — 공개용 단장
+### P3 — Quick wins 묶음
+- Memory 편집/삭제 UI
+- 시나리오 커스텀 (현재 3개 하드코딩)
+- Clone 버전 관리 UI (`clones.version` 컬럼 존재, UI 없음)
+- 민감 정보 toggle UI
+
+### 관망 (재현 안 됨 / defer)
+- Realtime 채널 안정화 — 유저 테스트에서 재현 안 됨
+- Memory compaction — 토큰 문제 발생 시 재논의
 
 ### Phase 3 이후 (n-to-n, 메타버스)
 - 3인 이상 그룹 상호작용
@@ -208,7 +232,8 @@
 | DB 스키마·RLS | `.claude/skills/db-schema/SKILL.md` |
 | 코드 리뷰 체크리스트 | `.claude/skills/review/SKILL.md` |
 | Phase 1 설계 스펙 | `docs/superpowers/specs/2026-04-11-phase1-digital-clone-design.md` |
-| Plan 문서 5개 | `docs/superpowers/plans/2026-04-*.md` |
+| Phase 2 P0 설계 스펙 | `docs/superpowers/specs/2026-04-12-phase2-p0-realism-world-context-design.md` |
+| Plan 문서 6개 | `docs/superpowers/plans/2026-04-*.md` |
 
 ---
 
@@ -219,5 +244,6 @@
 1. `CLAUDE.md` 자동 로드 — 프로젝트 비전·규칙 확보
 2. **이 파일 (`docs/PROJECT_STATE.md`)** 먼저 읽기 — 현재 상태·이슈·백로그
 3. 필요하면 관련 Skill 호출 (persona/interaction/db-schema)
-4. 사용자 요청에 따라 Phase 2 spec 설계 → Plan 6 작성 → 실행
-5. 신규 작업은 항상 **기존 결정 재확인** ("재도전 금지" 섹션) 후 시작
+4. Phase 2 P0 완료 상태 — 다음은 P2 (Matching) 또는 P3 (Quick wins)
+5. 튜닝 루프는 `npm run interact`로 지속 가능 (blocking 아님)
+6. 신규 작업은 항상 **기존 결정 재확인** ("재도전 금지" 섹션) 후 시작
