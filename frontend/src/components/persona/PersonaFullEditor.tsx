@@ -13,12 +13,18 @@ interface PersonaFullEditorProps {
   initialPersona: Persona
   onSubmit: (persona: PersonaInput) => Promise<void>
   submitting?: boolean
+  publicFields?: string[]
+  onTogglePublic?: (fieldKey: string) => void
+  showPublicToggle?: boolean
 }
 
 export function PersonaFullEditor({
   initialPersona,
   onSubmit,
   submitting,
+  publicFields,
+  onTogglePublic,
+  showPublicToggle,
 }: PersonaFullEditorProps) {
   const methods = useForm<PersonaInput>({
     resolver: zodResolver(personaSchema),
@@ -43,7 +49,13 @@ export function PersonaFullEditor({
           <div className="w-full min-h-[32rem]">
             {PERSONA_SECTIONS.map((s) => (
               <TabsContent key={s.category} value={s.category}>
-                <PersonaSection control={methods.control} category={s.category} />
+                <PersonaSection
+                  control={methods.control}
+                  category={s.category}
+                  publicFields={publicFields}
+                  onTogglePublic={onTogglePublic}
+                  showPublicToggle={showPublicToggle}
+                />
               </TabsContent>
             ))}
           </div>

@@ -77,7 +77,7 @@ export default async function CloneDetailPage({ params }: PageProps) {
         <PersonaSummaryCard persona={clone.persona_json} />
       </Card>
 
-      {clone.is_npc && (
+      {!isOwner && (
         <div className="mb-6">
           <NewInteractionHero partnerId={clone.id} />
         </div>

@@ -13,12 +13,15 @@ export default async function ClonesPage() {
   const admin = createServiceClient()
 
   const [mineResult, communityResult, npcsResult] = await Promise.all([
-    supabase
-      .from('clones')
-      .select('*')
-      .eq('is_npc', false)
-      .is('deleted_at', null)
-      .order('created_at', { ascending: false }),
+    user
+      ? supabase
+          .from('clones')
+          .select('*')
+          .eq('is_npc', false)
+          .eq('user_id', user.id)
+          .is('deleted_at', null)
+          .order('created_at', { ascending: false })
+      : Promise.resolve({ data: [], error: null }),
     user
       ? admin
           .from('clones')

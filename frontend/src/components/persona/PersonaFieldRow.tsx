@@ -18,15 +18,36 @@ import type { PersonaFieldDef } from '@/lib/constants/personaFields'
 interface PersonaFieldRowProps<T extends FieldValues> {
   field: PersonaFieldDef
   control: Control<T>
+  isPublicField?: boolean
+  onTogglePublic?: (fieldKey: string) => void
+  showPublicToggle?: boolean
 }
 
 export function PersonaFieldRow<T extends FieldValues>({
   field,
   control,
+  isPublicField,
+  onTogglePublic,
+  showPublicToggle,
 }: PersonaFieldRowProps<T>) {
   return (
     <div className="space-y-2">
-      <Label htmlFor={field.key as string}>{field.label}</Label>
+      <div className="flex items-center gap-2">
+        <Label htmlFor={field.key as string}>{field.label}</Label>
+        {showPublicToggle && onTogglePublic && (
+          <button
+            type="button"
+            onClick={() => onTogglePublic(field.key as string)}
+            className={`rounded-full px-2 py-0.5 text-[10px] font-medium transition ${
+              isPublicField
+                ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+            }`}
+          >
+            {isPublicField ? '공개' : '비공개'}
+          </button>
+        )}
+      </div>
 
       <Controller
         name={field.key as unknown as Path<T>}

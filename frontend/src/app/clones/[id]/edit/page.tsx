@@ -132,47 +132,14 @@ export default function CloneEditPage() {
         />
       </div>
 
-      {/* Field-level lock icons */}
-      {isPublic && (
-        <div className="mb-6 rounded-lg border p-4">
-          <p className="mb-3 font-medium text-sm">공개 필드 설정</p>
-          <p className="mb-4 text-xs text-muted-foreground">
-            🔓 공개 · 🔒 비공개 — 클릭하여 전환
-          </p>
-          <div className="space-y-4">
-            {PERSONA_SECTIONS.map((section) => (
-              <div key={section.category}>
-                <p className="mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                  {section.label}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {section.fields.map((field) => {
-                    const isOpen = publicFields.includes(field.key as string)
-                    return (
-                      <button
-                        key={field.key as string}
-                        type="button"
-                        onClick={() => handleLockToggle(field.key as string)}
-                        disabled={privacyUpdating}
-                        className="flex items-center gap-1 rounded-md border px-2 py-1 text-xs transition hover:bg-muted disabled:opacity-50"
-                      >
-                        <span>{isOpen ? '🔓' : '🔒'}</span>
-                        <span>{field.label}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       <Card className="p-6">
         <PersonaFullEditor
           initialPersona={clone.persona_json as Persona}
           onSubmit={handleSubmit}
           submitting={submitting}
+          publicFields={publicFields}
+          onTogglePublic={isPublic ? handleLockToggle : undefined}
+          showPublicToggle={isPublic}
         />
         {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
       </Card>

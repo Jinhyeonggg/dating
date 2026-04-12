@@ -13,6 +13,9 @@ interface PersonaSectionProps<T extends FieldValues> {
   category?: string
   fields?: readonly PersonaFieldDef[]
   showHeader?: boolean
+  publicFields?: string[]
+  onTogglePublic?: (fieldKey: string) => void
+  showPublicToggle?: boolean
 }
 
 export function PersonaSection<T extends FieldValues>({
@@ -20,6 +23,9 @@ export function PersonaSection<T extends FieldValues>({
   category,
   fields,
   showHeader = true,
+  publicFields,
+  onTogglePublic,
+  showPublicToggle,
 }: PersonaSectionProps<T>) {
   let section: PersonaSectionDef | undefined
   let targetFields: readonly PersonaFieldDef[]
@@ -45,6 +51,9 @@ export function PersonaSection<T extends FieldValues>({
             key={field.key as string}
             field={field}
             control={control}
+            isPublicField={publicFields?.includes(field.key as string)}
+            onTogglePublic={onTogglePublic}
+            showPublicToggle={showPublicToggle}
           />
         ))}
       </div>
