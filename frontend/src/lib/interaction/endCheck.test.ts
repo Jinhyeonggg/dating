@@ -27,21 +27,25 @@ describe('shouldEnd', () => {
     ).toBe(true)
   })
 
-  it('최근 3턴 모두 content.length < 10 이면 true', () => {
+  it('최근 5턴 모두 content.length < 4 이면 true', () => {
     const events = [
       event(0, '이것은 충분히 긴 응답입니다'),
       event(1, '네'),
       event(2, '응'),
-      event(3, '응'),
+      event(3, '네'),
+      event(4, '응'),
+      event(5, '네'),
     ]
-    expect(shouldEnd(events, 20, '응')).toBe(true)
+    expect(shouldEnd(events, 20, '네')).toBe(true)
   })
 
-  it('최근 3턴 중 하나라도 길면 false', () => {
+  it('최근 5턴 중 하나라도 길면 false', () => {
     const events = [
       event(0, '네'),
-      event(1, '이것은 충분히 긴 응답이에요!'),
+      event(1, '오 그래요?'),
       event(2, '응'),
+      event(3, '네'),
+      event(4, '응'),
     ]
     expect(shouldEnd(events, 20, '응')).toBe(false)
   })
