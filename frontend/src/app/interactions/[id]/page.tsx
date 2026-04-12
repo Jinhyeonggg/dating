@@ -1,10 +1,13 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import { InteractionViewer } from '@/components/interaction/InteractionViewer'
 import { DeleteInteractionButton } from '@/components/interaction/DeleteInteractionButton'
 import type { Clone } from '@/types/persona'
 import type { Interaction, InteractionEvent } from '@/types/interaction'
+
+const ADMIN_IDS = (process.env.ADMIN_USER_IDS ?? '').split(',').filter(Boolean)
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -23,14 +26,18 @@ export default async function InteractionViewerPage({ params }: PageProps) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const { data: interaction } = await supabase
+  // Admin이면 RLS 우회해서 모든 interaction 조회 가능
+  const isAdmin = user && ADMIN_IDS.includes(user.id)
+  const db = isAdmin ? createServiceClient() : supabase
+
+  const { data: interaction } = await db
     .from('interactions')
     .select('*')
     .eq('id', id)
     .maybeSingle<Interaction>()
   if (!interaction) notFound()
 
-  const { data: participantRows } = await supabase
+  const { data: participantRows } = await db
     .from('interaction_participants')
     .select('clone_id, clones(*)')
     .eq('interaction_id', id)
@@ -49,7 +56,7 @@ export default async function InteractionViewerPage({ params }: PageProps) {
     return aMine - bMine
   })
 
-  const { data: events } = await supabase
+  const { data: events } = await db
     .from('interaction_events')
     .select('*')
     .eq('interaction_id', id)
