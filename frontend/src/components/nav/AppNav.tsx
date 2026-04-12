@@ -27,22 +27,17 @@ export async function AppNav() {
   const hasMyClone = (myClones?.length ?? 0) > 0
   const myCloneIds = (myClones ?? []).map((c) => c.id)
 
-  // 받은 대화 요청 개수
+  // 받은 대화 요청 개수 (삭제되지 않은 것만)
   let receivedCount = 0
   if (myCloneIds.length > 0) {
     const { data: participations } = await admin
       .from('interaction_participants')
-      .select('interaction_id')
+      .select('interaction_id, interactions!inner(id, created_by, deleted_at)')
       .in('clone_id', myCloneIds)
+      .is('interactions.deleted_at', null)
+      .neq('interactions.created_by', user.id)
 
-    const { data: myStarted } = await supabase
-      .from('interactions')
-      .select('id')
-      .eq('created_by', user.id)
-      .is('deleted_at', null)
-
-    const startedIds = new Set((myStarted ?? []).map((i) => i.id))
-    receivedCount = (participations ?? []).filter((p) => !startedIds.has(p.interaction_id)).length
+    receivedCount = (participations ?? []).length
   }
 
   const interactionsLabel = receivedCount > 0 ? `Interactions (${receivedCount})` : 'Interactions'
