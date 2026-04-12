@@ -9,10 +9,10 @@
 
 | 항목 | 상태 |
 |---|---|
-| 현재 단계 | **Phase 2 P0 ✅ + Clone Visibility ✅** |
+| 현재 단계 | **Phase 2 P0 ✅ + Clone Visibility ✅ + Notification Bell ✅** |
 | 프로덕션 배포 | ✅ `https://frontend-eta-neon-97.vercel.app` |
 | 마지막 태그 | `phase1-complete` |
-| 다음 단계 | Phase 2 P2 (Matching 기반 Batch Simulation) 또는 P3 (Quick wins) |
+| 다음 단계 | 다음 세션에서 결정 (Implicit Persona 추출 / Clone 정체성 등) |
 | 기본 브랜치 | `main` |
 | 기술 스택 | Next.js 16 · TypeScript · Tailwind v4 · Supabase Cloud · Anthropic Claude · Vercel |
 
@@ -212,17 +212,20 @@
 - Spec: `docs/superpowers/specs/2026-04-12-phase2-p0-realism-world-context-design.md`
 - Plan: `docs/superpowers/plans/2026-04-12-phase2-p0-realism-world-context.md`
 
-### Clone Visibility ✅ 완료
+### Clone Visibility + Notification ✅ 완료
 - 유저 간 Clone 공개 (`is_public` + `public_fields` 컬럼)
 - `/clones` 3섹션: 내 Clone → 커뮤니티 → NPC
 - 필드별 프라이버시 칩 (편집 페이지 인라인)
 - Pair picker에 커뮤니티 Clone 추가
 - `/admin/interactions` 관리 대시보드
 - Interaction 목록 "받은 요청" / "내가 시작한" 분리 + navbar 알림
+- 알림 벨 (unread count + 드롭다운 + seen 처리)
+- Interaction 목록 "받은 요청" / "내가 시작한" 분리
+- 인사 반복 방지 + 플랫폼 맥락 프롬프트 개선
 - Spec: `docs/superpowers/specs/2026-04-12-clone-visibility-admin-interactions-design.md`
 - Plan: `docs/superpowers/plans/2026-04-12-clone-visibility-admin-interactions.md`
 
-### P2 — Matching 기반 Batch Simulation (다음)
+### P2 — Matching 기반 Batch Simulation
 - Persona 기반 top-k 후보 선정 (태그 overlap → 나중에 embedding)
 - 선정된 후보와 일괄 시뮬레이션 + 랭킹 뷰
 - 분석 리포트 카테고리/시각화 확장
