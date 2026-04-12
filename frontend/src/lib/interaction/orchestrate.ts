@@ -89,6 +89,7 @@ export async function prepareClonePrompts(
     const systemPrompt = buildEnhancedSystemPrompt({
       persona,
       memories,
+      inferredTraits: clone.inferred_traits ?? null,
       textureRules: TEXTURE_RULES,
       styleCards,
       mood,

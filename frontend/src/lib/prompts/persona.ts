@@ -1,4 +1,5 @@
 import type { Persona, CloneMemory } from '@/types/persona'
+import type { InferredTraits } from '@/types/onboarding'
 import { BEHAVIOR_INSTRUCTIONS } from './behavior'
 import { TEXTURE_RULES } from './texture'
 import { INTERACTION_DEFAULTS } from '@/lib/config/interaction'
@@ -43,6 +44,30 @@ export function renderRecentMemories(
   return `최근 기억:\n${lines.join('\n')}`
 }
 
+export function renderInferredTraits(traits: InferredTraits | null): string {
+  if (!traits) return ''
+
+  const lines = [
+    '[AI가 파악한 성격 패턴]',
+    `- 성격: ${traits.personality_summary}`,
+    `- 소통: ${traits.communication_tendency}`,
+    `- 사회적 스타일: ${traits.social_style}`,
+  ]
+
+  if (traits.value_priorities.length > 0) {
+    lines.push(`- 가치관 우선순위: ${traits.value_priorities.join(', ')}`)
+  }
+
+  lines.push(`- 갈등 대처: ${traits.conflict_style}`)
+  lines.push(`- 에너지 패턴: ${traits.energy_pattern}`)
+
+  if (traits.conversation_topics.length > 0) {
+    lines.push(`- 대화 시 즐기는 주제: ${traits.conversation_topics.join(', ')}`)
+  }
+
+  return lines.join('\n')
+}
+
 export function buildSystemPrompt(
   persona: Persona,
   memories: CloneMemory[] = []
@@ -58,6 +83,7 @@ export function buildSystemPrompt(
 export interface EnhancedPromptInput {
   persona: Persona
   memories?: CloneMemory[]
+  inferredTraits?: InferredTraits | null
   textureRules?: string
   styleCards?: StyleCard[]
   mood?: MoodState
@@ -89,7 +115,7 @@ function renderStyleCards(cards: StyleCard[]): string {
 }
 
 export function buildEnhancedSystemPrompt(input: EnhancedPromptInput): string {
-  const { persona, memories, textureRules, styleCards, mood, worldSnippet } = input
+  const { persona, memories, inferredTraits, textureRules, styleCards, mood, worldSnippet } = input
 
   const parts: string[] = []
 
@@ -99,25 +125,31 @@ export function buildEnhancedSystemPrompt(input: EnhancedPromptInput): string {
   // 2. Persona core
   parts.push(renderPersonaCore(persona))
 
-  // 3. Memories
+  // 3. Inferred traits
+  if (inferredTraits) {
+    const rendered = renderInferredTraits(inferredTraits)
+    if (rendered) parts.push(rendered)
+  }
+
+  // 4. Memories
   if (memories && memories.length > 0) {
     parts.push(renderRecentMemories(memories))
   }
 
-  // 4. Mood hint (short, 1-2 lines)
+  // 5. Mood hint (short, 1-2 lines)
   if (mood) parts.push(renderMoodHint(mood))
 
-  // 5. Style cards (few-shot examples)
+  // 6. Style cards (few-shot examples)
   if (styleCards && styleCards.length > 0) {
     parts.push(renderStyleCards(styleCards))
   }
 
-  // 6. World context (optional)
+  // 7. World context (optional)
   if (worldSnippet?.promptText) {
     parts.push(worldSnippet.promptText)
   }
 
-  // 7. Behavior instructions (always last)
+  // 8. Behavior instructions (always last)
   parts.push(BEHAVIOR_INSTRUCTIONS)
 
   return parts.join('\n\n')
