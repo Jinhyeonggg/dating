@@ -9,10 +9,10 @@
 
 | 항목 | 상태 |
 |---|---|
-| 현재 단계 | **Phase 2 P0 ✅ 완료** (Realism & World Context) |
+| 현재 단계 | **Phase 2 P0 ✅ + Clone Visibility ✅** |
 | 프로덕션 배포 | ✅ `https://frontend-eta-neon-97.vercel.app` |
 | 마지막 태그 | `phase1-complete` |
-| 다음 단계 | Phase 2 P2 (Matching 기반 Batch Simulation) |
+| 다음 단계 | Phase 2 P2 (Matching 기반 Batch Simulation) 또는 P3 (Quick wins) |
 | 기본 브랜치 | `main` |
 | 기술 스택 | Next.js 16 · TypeScript · Tailwind v4 · Supabase Cloud · Anthropic Claude · Vercel |
 
@@ -28,6 +28,7 @@
 - Plan 5: Memory + Analysis — 메모리 추출(Haiku), 호환성 분석(Sonnet, 캐시), UI (`plan5-memory-analysis-complete`)
 
 - Plan 6: Realism & World Context — 스타일 카드, mood roll, world context, texture rules, dev CLI (`phase2-p0-realism`)
+- Plan 7: Clone Visibility + Admin Interactions — 유저 간 Clone 공개, 필드별 프라이버시, admin 대시보드
 
 모든 Plan 문서: `docs/superpowers/plans/2026-04-*.md`
 
@@ -35,12 +36,12 @@
 
 **페이지**:
 - `/login` — Google OAuth + 이메일 매직링크
-- `/clones` — 내 Clone + NPC 목록
+- `/clones` — 내 Clone + 커뮤니티 Clone + NPC 3섹션
 - `/clones/mine` — 내 Clone 선택형 뷰 (다중 Clone 대응)
 - `/clones/new` — 빠른 생성 폼
 - `/clones/[id]` — 상세 + 메모리 (NPC 용도 포함)
-- `/clones/[id]/edit` — 상세 편집 (카테고리 탭)
-- `/interactions` — 목록 + Hero CTA
+- `/clones/[id]/edit` — 상세 편집 (카테고리 탭) + 공개/비공개 토글 + 필드별 프라이버시 칩
+- `/interactions` — "받은 대화 요청" / "내가 시작한 대화" 2섹션 + Hero CTA
 - `/interactions/new` — 페어 + 시나리오 선택
 - `/interactions/[id]` — Realtime 뷰어 + 분석 버튼
 - `/analyses/[id]` — 호환성 리포트
@@ -54,7 +55,9 @@
 - `GET /auth/callback`
 
 **Admin**:
-- `/admin/world` — world context 수동 관리 (ADMIN_USER_IDS env var 기반 접근 제어)
+- `/admin/world` — world context 수동 관리
+- `/admin/interactions` — 전체 interaction 조회 + 삭제
+- (ADMIN_USER_IDS env var 기반 접근 제어)
 
 ### 주요 모듈
 
@@ -71,6 +74,7 @@
 - `world/{types,collect,inject}.ts` — 외부 세계 context 수집 + 프롬프트 주입
 - `interaction/orchestrate.ts` — modulator 조립 (mood + cards + world → enhanced prompt)
 - `admin/guard.ts` — env var 기반 admin 체크
+- `clone/publicFields.ts` — 공개 필드 상수 + persona 필터 함수
 - `config/{claude,interaction,analysis}.ts` — 상수 (모델명, 턴 수, 시나리오, 카테고리, realism defaults)
 - `constants/personaFields.ts` — `PERSONA_SECTIONS` 메타데이터 (폼·프롬프트 공유)
 - `validation/*.ts` — Zod 스키마 5종 (worldContext 추가)
@@ -78,7 +82,7 @@
 
 **`components/`**:
 - `ui/` — shadcn/ui 프리미티브 (card, button, badge, input, textarea, select, tabs, alert-dialog, skeleton, sonner, dropdown-menu, form, label, avatar, page-skeleton)
-- `nav/` — `AppNav` (서버) + `NavLinks` + `BackButton` + `LogoutButton` (클라)
+- `nav/` — `AppNav` (서버, 받은 요청 개수 뱃지 포함) + `NavLinks` + `BackButton` + `LogoutButton` (클라)
 - `persona/` — `ArrayInput`, `PersonaFieldRow`, `PersonaSection`, `PersonaQuickForm`, `PersonaFullEditor`, `PersonaSummaryCard`, `PersonaDetailView`, `ExpandablePersonaDetail`
 - `clone/` — `CloneCard`, `CloneList`, `CloneNpcBadge`, `DeleteCloneButton`, `MyCloneSelector`
 - `interaction/` — `InteractionViewer`, `MessageBubble`, `TypingIndicator`, `InteractionPairPicker`, `ScenarioPicker`, `InteractionStatusBadge`, `InteractionProgressBar`, `NewInteractionHero`, `DeleteInteractionButton`
@@ -102,11 +106,12 @@
 10. `20260412000002_next_speaker_column.sql` — `interaction_events.next_speaker_clone_id`
 
 11. `20260413000001_world_context.sql` — `world_context` 테이블 + RLS (Phase 2 P0)
+12. `20260412000003_clone_visibility.sql` — `clones.is_public`, `clones.public_fields` + RLS 확장
 
 모든 마이그레이션 Supabase Cloud 적용 완료.
 
 ### 테스트
-- Vitest 128개 passing (Phase 1: 53 + Phase 2 P0: 75)
+- Vitest 135개 passing (Phase 1: 53 + Phase 2 P0: 75 + Clone Visibility: 7)
 - 순수 함수 전부 TDD 커버
 - UI / API / Supabase / Claude 호출은 수동 검증
 
@@ -153,6 +158,11 @@
 | World context 수동 큐레이션 | v1은 `/admin/world`에서 수동. 미래에 뉴스 API 자동 수집으로 전환 예정. collection vs injection 분리 |
 | Admin은 env var 기반 | `ADMIN_USER_IDS` env var. DB 컬럼 아님. 간단함 우선 |
 | Claude 4.6 assistant prefill 미지원 | 연속 발화 시 history가 assistant로 끝나면 `(이어서 말해)` continuation prompt 추가 |
+| Clone 기본 공개 + 필드별 프라이버시 | `is_public` default true, `public_fields` 배열로 필드별 공개/비공개 제어. Interaction에서는 전체 persona 사용, 열람 시만 필터링 |
+| Persona 필드 필터링은 API 레이어 | RLS는 row 단위만 가능. column masking은 서버 코드(`filterPersonaByPublicFields`)에서 수행 |
+| 인사는 1턴 제한 | behavior 규칙으로 강제. 2턴째부터 본론(프로필 기반 질문/관심사)으로 |
+| 첫 메시지에 상대 프로필 하이라이트 주입 | 엔진이 listener의 persona에서 직업/취미/MBTI 추출 → first user message에 포함 |
+| Interaction 목록 started/received 분리 | `created_by`로 내가 시작한 것 식별, `interaction_participants`로 받은 것 식별 |
 
 ---
 
@@ -173,6 +183,10 @@
   - World context 수동 큐레이션 (`/admin/world`)
   - Dev CLI (`npm run interact`) 로 튜닝 루프 지원
 - **현재 상태**: 기본 인프라 완성, 지속적 튜닝으로 개선 중
+- **추가 개선 (Plan 7 세션)**:
+  - 인사 반복 방지 (behavior 규칙 + 첫 메시지에 프로필 하이라이트 주입)
+  - Register-aware 축약어 규칙 (존댓말 사이에서 초성 축약 금지)
+  - 짧은 응답 임계값 완화 (한국어 대화에 맞게 MIN_RESPONSE_LENGTH 4, THRESHOLD 5)
 - **잔여 이슈**: 스타일 카드 다양성 확대 필요, 연속 발화 빈도 목표치(30%) 미달
 
 ### 3. Supabase 이메일 매직링크 rate limit
@@ -197,6 +211,16 @@
 - Dev CLI 튜닝 루프
 - Spec: `docs/superpowers/specs/2026-04-12-phase2-p0-realism-world-context-design.md`
 - Plan: `docs/superpowers/plans/2026-04-12-phase2-p0-realism-world-context.md`
+
+### Clone Visibility ✅ 완료
+- 유저 간 Clone 공개 (`is_public` + `public_fields` 컬럼)
+- `/clones` 3섹션: 내 Clone → 커뮤니티 → NPC
+- 필드별 프라이버시 칩 (편집 페이지 인라인)
+- Pair picker에 커뮤니티 Clone 추가
+- `/admin/interactions` 관리 대시보드
+- Interaction 목록 "받은 요청" / "내가 시작한" 분리 + navbar 알림
+- Spec: `docs/superpowers/specs/2026-04-12-clone-visibility-admin-interactions-design.md`
+- Plan: `docs/superpowers/plans/2026-04-12-clone-visibility-admin-interactions.md`
 
 ### P2 — Matching 기반 Batch Simulation (다음)
 - Persona 기반 top-k 후보 선정 (태그 overlap → 나중에 embedding)
@@ -233,7 +257,8 @@
 | 코드 리뷰 체크리스트 | `.claude/skills/review/SKILL.md` |
 | Phase 1 설계 스펙 | `docs/superpowers/specs/2026-04-11-phase1-digital-clone-design.md` |
 | Phase 2 P0 설계 스펙 | `docs/superpowers/specs/2026-04-12-phase2-p0-realism-world-context-design.md` |
-| Plan 문서 6개 | `docs/superpowers/plans/2026-04-*.md` |
+| Clone Visibility 설계 스펙 | `docs/superpowers/specs/2026-04-12-clone-visibility-admin-interactions-design.md` |
+| Plan 문서 7개 | `docs/superpowers/plans/2026-04-*.md` |
 
 ---
 
