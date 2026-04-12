@@ -1,9 +1,9 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import { createServiceClient } from '@/lib/supabase/service'
 import { LogoutButton } from './LogoutButton'
 import { BackButton } from './BackButton'
 import { NavLinks, type NavLink } from './NavLinks'
+import { NotificationBell } from './NotificationBell'
 
 export async function AppNav() {
   const supabase = await createClient()
@@ -13,8 +13,6 @@ export async function AppNav() {
 
   if (!user) return null
 
-  const admin = createServiceClient()
-
   // 내 Clone 바로가기 — 1개 이상 있으면 /clones/mine (선택형 뷰) 로
   const { data: myClones } = await supabase
     .from('clones')
@@ -22,29 +20,13 @@ export async function AppNav() {
     .eq('is_npc', false)
     .eq('user_id', user.id)
     .is('deleted_at', null)
-    .limit(10)
+    .limit(1)
 
   const hasMyClone = (myClones?.length ?? 0) > 0
-  const myCloneIds = (myClones ?? []).map((c) => c.id)
-
-  // 받은 대화 요청 개수 (삭제되지 않은 것만)
-  let receivedCount = 0
-  if (myCloneIds.length > 0) {
-    const { data: participations } = await admin
-      .from('interaction_participants')
-      .select('interaction_id, interactions!inner(id, created_by, deleted_at)')
-      .in('clone_id', myCloneIds)
-      .is('interactions.deleted_at', null)
-      .neq('interactions.created_by', user.id)
-
-    receivedCount = (participations ?? []).length
-  }
-
-  const interactionsLabel = receivedCount > 0 ? `Interactions (${receivedCount})` : 'Interactions'
 
   const navLinks: NavLink[] = [
     { href: '/clones', label: 'Clones' },
-    { href: '/interactions', label: interactionsLabel },
+    { href: '/interactions', label: 'Interactions' },
   ]
   if (hasMyClone) {
     navLinks.push({ href: '/clones/mine', label: '내 Clone' })
@@ -64,6 +46,7 @@ export async function AppNav() {
           <NavLinks links={navLinks} />
         </div>
         <div className="flex items-center gap-3">
+          <NotificationBell />
           <span className="hidden text-xs text-muted-foreground sm:inline">
             {user.email}
           </span>
