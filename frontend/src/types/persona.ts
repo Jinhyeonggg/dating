@@ -1,3 +1,5 @@
+import type { InferredTraits } from './onboarding'
+
 export interface Persona {
   // Identity
   name: string
@@ -89,6 +91,7 @@ export interface Clone {
   is_npc: boolean
   is_public: boolean
   public_fields: string[] | null
+  inferred_traits: InferredTraits | null
   version: number
   name: string
   persona_json: Persona
