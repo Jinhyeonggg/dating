@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { updateCloneSchema } from '@/lib/validation/persona'
 import { buildSystemPrompt } from '@/lib/prompts/persona'
+import { filterPersonaByPublicFields } from '@/lib/clone/publicFields'
 import { errors, AppError } from '@/lib/errors'
 import type { Persona } from '@/types/persona'
 
@@ -30,7 +31,7 @@ export async function GET(
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw errors.unauthorized()
 
-    const { data: clone, error } = await supabase
+    let { data: clone, error } = await supabase
       .from('clones')
       .select('*')
       .eq('id', id)
@@ -38,6 +39,12 @@ export async function GET(
       .single()
 
     if (error || !clone) throw errors.notFound('Clone')
+
+    const isOwner = clone.user_id === user.id || clone.is_npc
+    if (!isOwner) {
+      if (!clone.is_public) throw errors.notFound('Clone')
+      clone = { ...clone, persona_json: filterPersonaByPublicFields(clone.persona_json, clone.public_fields) }
+    }
 
     const { data: memories } = await supabase
       .from('clone_memories')
@@ -98,6 +105,8 @@ export async function PATCH(
     }
     if (parsed.data.name) updates.name = parsed.data.name
     if (parsed.data.is_active !== undefined) updates.is_active = parsed.data.is_active
+    if (parsed.data.is_public !== undefined) updates.is_public = parsed.data.is_public
+    if (parsed.data.public_fields !== undefined) updates.public_fields = parsed.data.public_fields
 
     const { data, error } = await admin
       .from('clones')

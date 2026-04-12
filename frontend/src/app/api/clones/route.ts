@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { createCloneSchema } from '@/lib/validation/persona'
 import { buildSystemPrompt } from '@/lib/prompts/persona'
+import { filterPersonaByPublicFields } from '@/lib/clone/publicFields'
 import { errors, AppError } from '@/lib/errors'
 import type { Persona, Clone } from '@/types/persona'
 
@@ -35,6 +36,24 @@ export async function GET() {
 
     if (mineError) throw errors.validation(mineError.message)
 
+    const admin = createServiceClient()
+
+    const { data: communityRaw, error: communityError } = await admin
+      .from('clones')
+      .select('*')
+      .eq('is_npc', false)
+      .eq('is_public', true)
+      .neq('user_id', user.id)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false })
+
+    if (communityError) throw errors.validation(communityError.message)
+
+    const filteredCommunity = (communityRaw ?? []).map((clone) => ({
+      ...clone,
+      persona_json: filterPersonaByPublicFields(clone.persona_json, clone.public_fields),
+    }))
+
     const { data: npcs, error: npcsError } = await supabase
       .from('clones')
       .select('*')
@@ -46,6 +65,7 @@ export async function GET() {
 
     return NextResponse.json({
       mine: mine ?? [],
+      community: filteredCommunity,
       npcs: npcs ?? [],
     })
   } catch (err) {
