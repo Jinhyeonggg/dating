@@ -73,4 +73,6 @@ export const updateCloneSchema = z.object({
   persona: personaPartialSchema.optional(),
   name: z.string().min(1).optional(),
   is_active: z.boolean().optional(),
+  is_public: z.boolean().optional(),
+  public_fields: z.array(z.string()).optional(),
 })
