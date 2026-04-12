@@ -2,6 +2,7 @@ export const CLAUDE_MODELS = {
   INTERACTION: 'claude-sonnet-4-6',
   EXTRACTION: 'claude-haiku-4-5-20251001',
   ANALYSIS: 'claude-sonnet-4-6',
+  ONBOARDING: 'claude-haiku-4-5-20251001',
 } as const
 
 export const CLAUDE_RETRY = {
@@ -14,4 +15,5 @@ export const CLAUDE_LIMITS = {
   MAX_OUTPUT_TOKENS_INTERACTION: 512,
   MAX_OUTPUT_TOKENS_EXTRACTION: 256,
   MAX_OUTPUT_TOKENS_ANALYSIS: 2048,
+  MAX_OUTPUT_TOKENS_ONBOARDING: 512,
 } as const
