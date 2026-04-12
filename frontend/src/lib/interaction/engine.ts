@@ -115,12 +115,22 @@ export async function runInteraction(
 
       // 첫 턴: 시나리오 컨텍스트를 first user 메시지로
       if (turn === 0) {
+        // 상대방 프로필에서 관심 가질 만한 정보 추출
+        const listenerPersona = listener.persona_json
+        const highlights = [
+          listenerPersona.occupation,
+          listenerPersona.hobbies?.slice(0, 2).join(', '),
+          listenerPersona.mbti,
+          listenerPersona.self_description?.slice(0, 50),
+        ].filter(Boolean).join(' / ')
+
         const firstUserMessage = buildFirstUserMessage({
           scenarioLabel: input.scenario.label,
           scenarioDescription: input.scenario.description,
           setting: input.setting,
           partnerName: listener.name,
           selfName: speaker.name,
+          partnerHighlights: highlights || undefined,
         })
         history.push({ role: 'user', content: firstUserMessage })
       }

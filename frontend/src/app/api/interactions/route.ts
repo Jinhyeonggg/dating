@@ -28,16 +28,56 @@ export async function GET() {
     } = await supabase.auth.getUser()
     if (!user) throw errors.unauthorized()
 
-    // 내가 만든 interaction 목록 (created_by = user.id)
-    const { data, error } = await supabase
+    const admin = createServiceClient()
+
+    // 내 clone ID 목록
+    const { data: myClones } = await supabase
+      .from('clones')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('is_npc', false)
+      .is('deleted_at', null)
+    const myCloneIds = (myClones ?? []).map((c) => c.id)
+
+    // 내가 시작한 interaction
+    const { data: started, error: startedError } = await supabase
       .from('interactions')
-      .select('*, interaction_participants(clone_id, clones(id, name, is_npc))')
+      .select('*, interaction_participants(clone_id, role, clones(id, name, is_npc))')
       .eq('created_by', user.id)
+      .is('deleted_at', null)
       .order('created_at', { ascending: false })
       .limit(50)
 
-    if (error) throw errors.validation(error.message)
-    return NextResponse.json({ interactions: data ?? [] })
+    if (startedError) throw errors.validation(startedError.message)
+
+    // 상대방이 내 clone으로 신청한 interaction
+    let received: typeof started = []
+    if (myCloneIds.length > 0) {
+      const { data: participations } = await admin
+        .from('interaction_participants')
+        .select('interaction_id')
+        .in('clone_id', myCloneIds)
+
+      const participatedIds = (participations ?? []).map((p) => p.interaction_id)
+      const startedIds = (started ?? []).map((i) => i.id)
+      const receivedIds = participatedIds.filter((id) => !startedIds.includes(id))
+
+      if (receivedIds.length > 0) {
+        const { data: receivedData } = await admin
+          .from('interactions')
+          .select('*, interaction_participants(clone_id, role, clones(id, name, is_npc))')
+          .in('id', receivedIds)
+          .is('deleted_at', null)
+          .order('created_at', { ascending: false })
+
+        received = receivedData ?? []
+      }
+    }
+
+    return NextResponse.json({
+      started: started ?? [],
+      received: received ?? [],
+    })
   } catch (err) {
     return toErrorResponse(err)
   }

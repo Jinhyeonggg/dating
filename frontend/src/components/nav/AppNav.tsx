@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import { LogoutButton } from './LogoutButton'
 import { BackButton } from './BackButton'
 import { NavLinks, type NavLink } from './NavLinks'
@@ -12,6 +13,8 @@ export async function AppNav() {
 
   if (!user) return null
 
+  const admin = createServiceClient()
+
   // 내 Clone 바로가기 — 1개 이상 있으면 /clones/mine (선택형 뷰) 로
   const { data: myClones } = await supabase
     .from('clones')
@@ -19,13 +22,34 @@ export async function AppNav() {
     .eq('is_npc', false)
     .eq('user_id', user.id)
     .is('deleted_at', null)
-    .limit(1)
+    .limit(10)
 
   const hasMyClone = (myClones?.length ?? 0) > 0
+  const myCloneIds = (myClones ?? []).map((c) => c.id)
+
+  // 받은 대화 요청 개수
+  let receivedCount = 0
+  if (myCloneIds.length > 0) {
+    const { data: participations } = await admin
+      .from('interaction_participants')
+      .select('interaction_id')
+      .in('clone_id', myCloneIds)
+
+    const { data: myStarted } = await supabase
+      .from('interactions')
+      .select('id')
+      .eq('created_by', user.id)
+      .is('deleted_at', null)
+
+    const startedIds = new Set((myStarted ?? []).map((i) => i.id))
+    receivedCount = (participations ?? []).filter((p) => !startedIds.has(p.interaction_id)).length
+  }
+
+  const interactionsLabel = receivedCount > 0 ? `Interactions (${receivedCount})` : 'Interactions'
 
   const navLinks: NavLink[] = [
     { href: '/clones', label: 'Clones' },
-    { href: '/interactions', label: 'Interactions' },
+    { href: '/interactions', label: interactionsLabel },
   ]
   if (hasMyClone) {
     navLinks.push({ href: '/clones/mine', label: '내 Clone' })
