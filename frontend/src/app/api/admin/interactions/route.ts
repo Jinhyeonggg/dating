@@ -22,7 +22,6 @@ export async function GET() {
     const { data, error } = await service
       .from('interactions')
       .select(`*, interaction_participants ( clone_id, role, clones ( id, name, is_npc, user_id ) )`)
-      .is('deleted_at', null)
       .order('created_at', { ascending: false })
       .limit(100)
 

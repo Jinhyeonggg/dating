@@ -37,13 +37,12 @@ export async function GET() {
         interaction_id,
         seen_at,
         interactions!inner (
-          id, status, scenario, created_at, created_by, deleted_at,
+          id, status, scenario, created_at, created_by,
           interaction_participants ( clone_id, clones ( id, name ) )
         )
       `)
       .in('clone_id', myCloneIds)
       .is('seen_at', null)
-      .is('interactions.deleted_at', null)
       .neq('interactions.created_by', user.id)
       .order('interactions(created_at)', { ascending: false })
       .limit(20)

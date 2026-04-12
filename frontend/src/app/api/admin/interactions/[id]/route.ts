@@ -23,9 +23,10 @@ export async function DELETE(
     const { id } = await ctx.params
     const service = createServiceClient()
 
+    // cascade: events + participants는 FK cascade로 삭제됨
     const { error } = await service
       .from('interactions')
-      .update({ deleted_at: new Date().toISOString() })
+      .delete()
       .eq('id', id)
 
     if (error) throw new AppError('INTERNAL', error.message, 500)

@@ -94,7 +94,6 @@ export default async function InteractionsPage() {
     .from('interactions')
     .select('*, interaction_participants(clone_id, clones(id, name, is_npc))')
     .eq('created_by', user.id)
-    .is('deleted_at', null)
     .order('created_at', { ascending: false })
     .limit(50)
 
@@ -117,7 +116,6 @@ export default async function InteractionsPage() {
         .from('interactions')
         .select('*, interaction_participants(clone_id, clones(id, name, is_npc))')
         .in('id', receivedIds)
-        .is('deleted_at', null)
         .order('created_at', { ascending: false })
 
       received = (receivedData ?? []) as unknown as InteractionRow[]
