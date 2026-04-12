@@ -31,6 +31,7 @@ export async function GET() {
       .from('clones')
       .select('*')
       .eq('is_npc', false)
+      .eq('user_id', user.id)
       .is('deleted_at', null)
       .order('created_at', { ascending: false })
 
