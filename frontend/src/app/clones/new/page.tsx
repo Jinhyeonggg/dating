@@ -25,7 +25,7 @@ export default function NewClonePage() {
         throw new Error(body?.error?.message ?? 'Clone 생성 실패')
       }
       const { clone } = await res.json()
-      router.push(`/clones/${clone.id}`)
+      router.push(`/clones/${clone.id}/onboarding`)
     } catch (e) {
       setError(e instanceof Error ? e.message : '알 수 없는 오류')
     } finally {

@@ -6,7 +6,7 @@ import { ExpandablePersonaDetail } from '@/components/persona/ExpandablePersonaD
 import { CloneNpcBadge } from '@/components/clone/CloneNpcBadge'
 import { DeleteCloneButton } from '@/components/clone/DeleteCloneButton'
 import { NewInteractionHero } from '@/components/interaction/NewInteractionHero'
-import { buttonVariants } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { MemoryInputBox } from '@/components/memory/MemoryInputBox'
@@ -84,6 +84,51 @@ export default async function CloneDetailPage({ params }: PageProps) {
       )}
 
       <ExpandablePersonaDetail persona={clone.persona_json} />
+
+      {/* Inferred Traits 섹션 */}
+      {isOwner && !clone.inferred_traits && (
+        <Card className="mt-6 border-dashed p-4">
+          <p className="text-sm text-muted-foreground">
+            성격 파악 퀴즈를 하면 AI가 더 정확하게 대화합니다
+          </p>
+          <Link href={`/clones/${clone.id}/onboarding`}>
+            <Button variant="outline" size="sm" className="mt-2">
+              퀴즈 시작
+            </Button>
+          </Link>
+        </Card>
+      )}
+      {clone.inferred_traits && (
+        <Card className="mt-6 p-6">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-semibold">AI가 파악한 성격</h2>
+            {isOwner && (
+              <Link
+                href={`/clones/${clone.id}/onboarding`}
+                className="text-sm text-muted-foreground hover:underline"
+              >
+                다시 하기
+              </Link>
+            )}
+          </div>
+          <div className="space-y-3">
+            {[
+              { label: '성격', value: clone.inferred_traits.personality_summary },
+              { label: '소통 스타일', value: clone.inferred_traits.communication_tendency },
+              { label: '사회적 스타일', value: clone.inferred_traits.social_style },
+              { label: '가치관', value: clone.inferred_traits.value_priorities.join(', ') },
+              { label: '갈등 대처', value: clone.inferred_traits.conflict_style },
+              { label: '에너지 패턴', value: clone.inferred_traits.energy_pattern },
+              { label: '관심 대화 주제', value: clone.inferred_traits.conversation_topics.join(', ') },
+            ].map((r) => (
+              <div key={r.label}>
+                <span className="text-sm font-medium text-muted-foreground">{r.label}</span>
+                <p className="text-sm">{r.value || '-'}</p>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       <section className="mt-8">
         <h2 className="mb-3 text-lg font-semibold">메모리</h2>
