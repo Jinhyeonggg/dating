@@ -34,6 +34,7 @@ function makeClone(id: string, name: string): Clone {
     is_active: true,
     is_public: false,
     public_fields: null,
+    inferred_traits: null,
     created_at: '',
     updated_at: '',
   }
