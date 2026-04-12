@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { runInteraction } from '@/lib/interaction/engine'
+import { prepareClonePrompts } from '@/lib/interaction/orchestrate'
 import { DEFAULT_SCENARIOS } from '@/lib/config/interaction'
 import { errors, AppError } from '@/lib/errors'
 import type { Clone, CloneMemory } from '@/types/persona'
@@ -59,15 +60,31 @@ export async function POST(
 
     if (participants.length !== 2) throw errors.validation('참여자가 2명이어야 합니다')
 
-    // 메모리 fetch (Plan 5 전에는 비어 있음, 빈 배열로 OK)
+    const admin = createServiceClient()
+
+    // 메모리 fetch
     const memoriesByClone = new Map<string, CloneMemory[]>()
-    for (const p of participants) memoriesByClone.set(p.id, [])
+    for (const p of participants) {
+      const { data: mems } = await admin
+        .from('clone_memories')
+        .select('*')
+        .eq('clone_id', p.id)
+        .order('occurred_at', { ascending: false })
+        .limit(10)
+      memoriesByClone.set(p.id, (mems ?? []) as CloneMemory[])
+    }
 
     const metadata = (interaction.metadata ?? {}) as { scenarioId?: string }
     const scenarioId = metadata.scenarioId ?? DEFAULT_SCENARIOS[0].id
     const scenario = DEFAULT_SCENARIOS.find((s) => s.id === scenarioId) ?? DEFAULT_SCENARIOS[0]
 
-    const admin = createServiceClient()
+    // 모듈레이터 오케스트레이션: mood + style cards + world context → enhanced system prompts
+    const today = new Date().toISOString().split('T')[0]
+    const clonePrompts = await prepareClonePrompts(participants, memoriesByClone, id, today)
+    const prebuiltPrompts = new Map<string, string>()
+    for (const [cloneId, ctx] of clonePrompts) {
+      prebuiltPrompts.set(cloneId, ctx.systemPrompt)
+    }
 
     // status running + started_at
     await admin
@@ -86,6 +103,7 @@ export async function POST(
       },
       setting: interaction.setting,
       maxTurns: interaction.max_turns,
+      prebuiltPrompts,
     })
 
     await admin
