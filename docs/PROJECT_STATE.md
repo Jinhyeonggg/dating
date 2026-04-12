@@ -1,7 +1,7 @@
 # Project State — Digital Clone Platform
 
 > **Living document.** 매 Phase 끝에 업데이트. 새 대화를 시작할 때 가장 먼저 읽어야 할 문서.
-> 마지막 업데이트: **2026-04-12** (Phase 2 P0 완료 시점)
+> 마지막 업데이트: **2026-04-12** (Phase 2-A 완료 시점)
 
 ---
 
@@ -9,10 +9,10 @@
 
 | 항목 | 상태 |
 |---|---|
-| 현재 단계 | **Phase 2 P0 ✅ + Clone Visibility ✅ + Notification Bell ✅** |
+| 현재 단계 | **Phase 2 P0 ✅ + Clone Visibility ✅ + Notification Bell ✅ + Phase 2-A Onboarding ✅** |
 | 프로덕션 배포 | ✅ `https://frontend-eta-neon-97.vercel.app` |
 | 마지막 태그 | `phase1-complete` |
-| 다음 단계 | 다음 세션에서 결정 (Implicit Persona 추출 / Clone 정체성 등) |
+| 다음 단계 | Phase 2-B (Clone 관계 기억) 구현 |
 | 기본 브랜치 | `main` |
 | 기술 스택 | Next.js 16 · TypeScript · Tailwind v4 · Supabase Cloud · Anthropic Claude · Vercel |
 
@@ -29,6 +29,7 @@
 
 - Plan 6: Realism & World Context — 스타일 카드, mood roll, world context, texture rules, dev CLI (`phase2-p0-realism`)
 - Plan 7: Clone Visibility + Admin Interactions — 유저 간 Clone 공개, 필드별 프라이버시, admin 대시보드
+- Plan 8: Implicit Persona Onboarding — 시나리오+퀴즈 온보딩, inferred_traits, system prompt 주입
 
 모든 Plan 문서: `docs/superpowers/plans/2026-04-*.md`
 
@@ -41,6 +42,7 @@
 - `/clones/new` — 빠른 생성 폼
 - `/clones/[id]` — 상세 + 메모리 (NPC 용도 포함)
 - `/clones/[id]/edit` — 상세 편집 (카테고리 탭) + 공개/비공개 토글 + 필드별 프라이버시 칩
+- `/clones/[id]/onboarding` — 성격 파악 퀴즈 (시나리오 3 + 선택지 4)
 - `/interactions` — "받은 대화 요청" / "내가 시작한 대화" 2섹션 + Hero CTA
 - `/interactions/new` — 페어 + 시나리오 선택
 - `/interactions/[id]` — Realtime 뷰어 + 분석 버튼
@@ -107,11 +109,14 @@
 
 11. `20260413000001_world_context.sql` — `world_context` 테이블 + RLS (Phase 2 P0)
 12. `20260412000003_clone_visibility.sql` — `clones.is_public`, `clones.public_fields` + RLS 확장
+13. `20260412000004_participant_seen_at.sql` — interaction_participants.seen_at
+14. `20260412000005_inferred_traits.sql` — `clones.inferred_traits` jsonb (Phase 2-A)
+15. `20260412000006_fix_rls_participant_visibility.sql` — `interaction_is_mine` 함수 수정 (참여자도 interaction 조회 가능)
 
 모든 마이그레이션 Supabase Cloud 적용 완료.
 
 ### 테스트
-- Vitest 135개 passing (Phase 1: 53 + Phase 2 P0: 75 + Clone Visibility: 7)
+- Vitest 141개 passing (Phase 1: 53 + Phase 2 P0: 75 + Clone Visibility: 7 + Phase 2-A: 6)
 - 순수 함수 전부 TDD 커버
 - UI / API / Supabase / Claude 호출은 수동 검증
 
@@ -160,6 +165,8 @@
 | Claude 4.6 assistant prefill 미지원 | 연속 발화 시 history가 assistant로 끝나면 `(이어서 말해)` continuation prompt 추가 |
 | Clone 기본 공개 + 필드별 프라이버시 | `is_public` default true, `public_fields` 배열로 필드별 공개/비공개 제어. Interaction에서는 전체 persona 사용, 열람 시만 필터링 |
 | Persona 필드 필터링은 API 레이어 | RLS는 row 단위만 가능. column masking은 서버 코드(`filterPersonaByPublicFields`)에서 수행 |
+| Clone 데이터 4레이어 분리 | `persona_json`(유저 입력) / `inferred_traits`(AI 추론) / `clone_memories`(에피소드) / `clone_relationships`(관계 기억, Phase 2-B). 각 레이어 역할 섞지 말 것 |
+| 온보딩은 폼과 독립적 | 폼의 빈 필드를 채우는 것이 아니라, 폼으로 잡기 어려운 행동 패턴을 별도 추출 |
 | 인사는 1턴 제한 | behavior 규칙으로 강제. 2턴째부터 본론(프로필 기반 질문/관심사)으로 |
 | 첫 메시지에 상대 프로필 하이라이트 주입 | 엔진이 listener의 persona에서 직업/취미/MBTI 추출 → first user message에 포함 |
 | Interaction 목록 started/received 분리 | `created_by`로 내가 시작한 것 식별, `interaction_participants`로 받은 것 식별 |
