@@ -28,6 +28,7 @@ function NewInteractionContent() {
   const searchParams = useSearchParams()
   const partnerIdFromQuery = searchParams.get('partnerId')
   const [mine, setMine] = useState<Clone[]>([])
+  const [community, setCommunity] = useState<Clone[]>([])
   const [npcs, setNpcs] = useState<Clone[]>([])
   const [pair, setPair] = useState<[string | null, string | null]>([null, null])
   const [scenarioId, setScenarioId] = useState<string>(DEFAULT_SCENARIOS[0].id)
@@ -40,13 +41,15 @@ function NewInteractionContent() {
       .then((r) => r.json())
       .then((data) => {
         const mineList: Clone[] = data.mine ?? []
+        const communityList: Clone[] = data.community ?? []
         const npcList: Clone[] = data.npcs ?? []
         setMine(mineList)
+        setCommunity(communityList)
         setNpcs(npcList)
 
         const validPartner =
           partnerIdFromQuery &&
-          [...mineList, ...npcList].some((c) => c.id === partnerIdFromQuery)
+          [...mineList, ...communityList, ...npcList].some((c) => c.id === partnerIdFromQuery)
             ? partnerIdFromQuery
             : null
         setPair([
@@ -110,6 +113,7 @@ function NewInteractionContent() {
           <h2 className="mb-3 text-sm font-semibold">참여자</h2>
           <InteractionPairPicker
             mine={mine}
+            community={community}
             npcs={npcs}
             selected={pair}
             onChange={setPair}
