@@ -9,10 +9,10 @@
 
 | 항목 | 상태 |
 |---|---|
-| 현재 단계 | **Phase 2 P0 ✅ + Clone Visibility ✅ + Notification ✅ + Phase 2-A Onboarding ✅ + UX/Bug Fixes ✅** |
+| 현재 단계 | **Phase 2-A ✅ + Phase 2-B ✅ (관계 기억) + 롤 매핑 수정 ✅** |
 | 프로덕션 배포 | ✅ `https://frontend-eta-neon-97.vercel.app` |
 | 마지막 태그 | `phase1-complete` |
-| 다음 단계 | Phase 2-B (Clone 관계 기억) 구현 |
+| 다음 단계 | 튜닝 + super_meme NPC + 전략 방향 결정 |
 | 기본 브랜치 | `main` |
 | 기술 스택 | Next.js 16 · TypeScript · Tailwind v4 · Supabase Cloud · Anthropic Claude · Vercel |
 
@@ -30,6 +30,8 @@
 - Plan 6: Realism & World Context — 스타일 카드, mood roll, world context, texture rules, dev CLI (`phase2-p0-realism`)
 - Plan 7: Clone Visibility + Admin Interactions — 유저 간 Clone 공개, 필드별 프라이버시, admin 대시보드
 - Plan 8: Implicit Persona Onboarding — 시나리오+퀴즈 온보딩, inferred_traits, system prompt 주입
+- Plan 9: Clone Relationship Memory — 양방향 관계 기억, 자동 추출, system prompt 주입
+- Plan 10: Role Clarity + Reliable Extraction — 롤 매핑 명확화, after() 추출, fallback
 
 모든 Plan 문서: `docs/superpowers/plans/2026-04-*.md`
 
@@ -53,6 +55,8 @@
 - `POST /api/clones/[id]/onboarding` — 온보딩 응답 제출 → Haiku 추론 → inferred_traits 저장
 - `GET|POST /api/interactions` / `GET|DELETE /api/interactions/[id]` / `POST /api/interactions/[id]/run`
 - `POST /api/interactions/[id]/seen` — 알림 seen 처리
+- `POST /api/interactions/[id]/extract-memories` — 관계 기억 추출 (fallback + 수동 재시도, 60초 타임아웃)
+- `DELETE /api/clone-relationships/[id]` — 관계 기억 삭제 (소유권 확인)
 - `GET /api/notifications` — 미읽은 알림 목록
 - `GET|POST /api/memories`
 - `POST /api/analyses` / `GET /api/analyses/[id]`
@@ -191,16 +195,22 @@
 Interaction 시 Clone별 system prompt는 다음 순서로 조립 (`orchestrate.ts` → `buildEnhancedSystemPrompt`):
 
 ```
-1. TEXTURE_RULES              ← lib/prompts/texture.ts (카톡 리얼리즘)
-2. PERSONA CORE               ← persona_json (null 필드 제외)
-3. INFERRED TRAITS             ← inferred_traits (null이면 생략, Phase 2-A)
-4. (Phase 2-B) RELATIONSHIP MEMORY  ← clone_relationships (미구현)
-5. EPISODIC MEMORIES           ← clone_memories 최근 10개
-6. MOOD HINT                   ← rollMood() (Haiku + fallback)
-7. STYLE CARDS                 ← pickStyleCards() (최대 2장)
-8. WORLD CONTEXT               ← world_context 테이블
-9. BEHAVIOR INSTRUCTIONS       ← lib/prompts/behavior.ts
+ 1. TEXTURE_RULES              ← lib/prompts/texture.ts (카톡 리얼리즘)
+ 1.5 ROLE CONTEXT              ← "당신은 X. 상대방은 Y (직업, 나이, MBTI)." 역할 혼동 방지
+ 2. PERSONA CORE               ← persona_json (null 필드 제외)
+ 3. INFERRED TRAITS             ← inferred_traits (null이면 생략, Phase 2-A)
+ 4. RELATIONSHIP MEMORY         ← clone_relationships (해당 상대, 없으면 생략)
+ 5. EPISODIC MEMORIES           ← clone_memories 최근 10개
+ 6. MOOD HINT                   ← rollMood() (Haiku + fallback)
+ 7. STYLE CARDS                 ← pickStyleCards() (최대 2장)
+ 8. WORLD CONTEXT               ← world_context 테이블
+ 9. BEHAVIOR INSTRUCTIONS       ← lib/prompts/behavior.ts
 ```
+
+**현재 제약 (토큰 절약 모드):**
+- 메모리/관계 기억의 system prompt 반영은 최소한으로 제한 중
+- 이상적으로는 압축해서라도 전부 주입하는 것이 best지만, 현재는 토큰 비용 때문에 제한
+- 추후 메모리 compaction, 요약 파이프라인 도입 시 주입량 확대 예정
 
 튜닝 포인트: `docs/reference/clone-data-fields.md` 참조.
 
@@ -214,9 +224,22 @@ Interaction 시 Clone별 system prompt는 다음 순서로 조립 (`orchestrate.
 - 클릭 → seen 처리 + interaction 페이지 이동
 - 읽은 알림만 개별 제거 (전체 삭제 아님)
 
+### 메모리 탭 UI (`MemoryTabs`)
+- Clone 상세 페이지 (`/clones/[id]`, `/clones/mine`)에서 탭으로 메모리/대화 기억 전환
+- 📝 **메모리** — 유저 직접 입력. `created_at` 기준 시:분:초까지 표시
+- 💬 **대화 기억** — Interaction 후 자동 추출. 상대 clone별 카드, 마지막 대화 시각, "보기" 링크로 해당 interaction 이동, 삭제 버튼
+- 본인 clone에서만 표시 (NPC/커뮤니티 clone에서는 숨김)
+
+### 관계 기억 자동 추출
+- Interaction 완료 후 `after()` API로 response 반환 후 백그라운드 추출
+- 양방향 순차 실행 (rate limit 충돌 방지)
+- Fallback: interaction 뷰어 방문 시 3초 후 `/api/interactions/[id]/extract-memories` 자동 호출 (양방향 모두 완료될 때까지)
+- 추출 실패 시 에러 로깅만 (유저 경험 차단 없음)
+- `FEATURE_FLAGS.ENABLE_RELATIONSHIP_MEMORY`로 on/off 가능
+
 ### 메모리 업데이트 유도 배너 (`MemoryPromptBanner`)
 - localStorage로 마지막 접속 시각 추적
-- 1시간 이상 미접속 후 재방문 시 파란색 그라데이션 배너 표시 (**현재 테스트용 5초 — 복원 필요**)
+- 1시간 이상 미접속 후 재방문 시 파란색 그라데이션 배너 표시
 - 클릭 → 인라인 메모리 입력 확장 (다중 clone 선택 지원)
 - "닫기" / "나중에" → 이번 탭 세션에서 dismiss
 
@@ -241,11 +264,25 @@ AppNav → TipBanner → MemoryPromptBanner → {children}
 - **TODO**: 근본 원인 조사
 
 ### 2. Anthropic API Rate Limit — 동시 요청 시 속도 저하
-- **증상**: 여러 유저가 동시에 interaction 실행 시 답변 속도 현저히 느려짐
-- **원인**: 1 Interaction = ~21 API 호출 (mood 1 + 턴 20). 동시 실행 시 429 rate limit 도달
-- **현재 대응**: `callClaude` 지수 백오프 재시도 (1초→2초→4초)
-- **단기 개선 예정**: 동시 실행 제한 (세마포어), 턴 수 축소 (12-15)
+- **증상**: 여러 유저가 동시에 interaction 실행 시 답변 속도 현저히 느려짐, 관계 기억 추출 한쪽 실패
+- **원인**: 1 Interaction = ~17 API 호출 (mood 1 + 턴 15 + 관계 추출 2). 동시 실행 시 429 rate limit
+- **현재 대응**: 
+  - `callClaude` 지수 백오프 재시도 (1초→2초→4초)
+  - 관계 기억 추출은 순차 실행 (병렬 rate limit 충돌 방지)
+  - fallback API로 실패 시 재시도
 - **중기**: Anthropic Tier 업그레이드, 큐잉 시스템
+
+### 7. 임시 설정 — 토큰 절약 모드 (TODO: 복원)
+- `CLAUDE_MODELS.INTERACTION`: `claude-sonnet-4-6` → **`claude-haiku-4-5-20251001`** (테스트용)
+- `INTERACTION_DEFAULTS.MAX_TURNS`: 20 → **15**
+- `CLAUDE_LIMITS.MAX_OUTPUT_TOKENS_INTERACTION`: 512 → **200** (Haiku 토큰 꽉 채움 방지)
+- **복원 시**: claude.ts에서 INTERACTION 모델을 sonnet으로, interaction.ts에서 MAX_TURNS 20으로, MAX_OUTPUT_TOKENS 512로
+
+### 8. AI 역할 혼동 (Haiku 한계) — 완화됨
+- **증상**: AI가 자기 프로필 정보를 상대방의 것으로 착각하고 질문
+- **원인**: system prompt에 자기 정보만 있고 상대가 누구인지 명시 안 됨 + Haiku의 약한 instruction following
+- **완화**: `[역할]` 컨텍스트 추가. Sonnet 복원 시 크게 개선될 것으로 예상
+- **추가 관찰 필요**: Haiku에서 "알지 못하는 것을 아는 척" 하는 문제 (예: 롤토체스를 모를 법한 clone이 설명하는 척)
 
 ### 3. Stuck Interaction 방지 — 해결됨 (2026-04-13)
 - **이전 증상**: Vercel 300초 타임아웃 또는 엔진 에러 시 status가 `running`으로 영구 남음
@@ -266,9 +303,8 @@ AppNav → TipBanner → MemoryPromptBanner → {children}
 ### 5. Supabase 이메일 매직링크 rate limit
 - **우회책**: Google OAuth 로 로그인 (현재 주 로그인 수단)
 
-### 6. 메모리 배너 간격 — 테스트 후 복원 필요
-- `MemoryPromptBanner.tsx`의 `ONE_HOUR_MS`가 현재 `5 * 1000` (5초)
-- 테스트 후 `60 * 60 * 1000` (1시간)으로 복원할 것
+### 6. 메모리 배너 간격 — ✅ 복원 완료
+- `MemoryPromptBanner.tsx`의 `ONE_HOUR_MS` = `60 * 60 * 1000` (1시간)
 
 ---
 
@@ -312,14 +348,36 @@ AppNav → TipBanner → MemoryPromptBanner → {children}
 - 온보딩 분석 중 스피너 + 에러 화면
 - Admin interaction viewer 접근 (service client)
 
-### Phase 2-B — Clone 관계 기억 (다음)
+### Phase 2-B ✅ 완료 — Clone 관계 기억
 - `clone_relationships` 테이블 (양방향, 1급 엔티티)
-- Interaction 종료 후 양방향 관계 기억 자동 추출 (Haiku)
+- Interaction 종료 후 양방향 관계 기억 자동 추출 (Haiku, 순차)
 - 솔직한 내면 평가 원칙 (AI스러운 긍정 편향 억제)
-- System prompt에 관계 기억 주입
+- System prompt에 관계 기억 주입 + 역할 컨텍스트로 혼동 방지
+- `after()` API로 Vercel 타임아웃과 분리 + fallback 추출 트리거
+- 탭 UI (`MemoryTabs`)로 메모리/대화 기억 분리 표시 + 삭제 기능
+- `FEATURE_FLAGS.ENABLE_RELATIONSHIP_MEMORY`로 on/off 가능
 - Phase 3+에 주관적 평가 (`impression`, `affinity_score`) 확장
 - Spec: `docs/superpowers/specs/2026-04-12-implicit-persona-clone-identity-design.md` 섹션 3
 - Plan: `docs/superpowers/plans/2026-04-12-phase2b-clone-relationship-memory.md`
+- Bugfix Plan: `docs/superpowers/plans/2026-04-13-role-clarity-and-reliable-extraction.md`
+
+### 롤 매핑 + 추출 안정화 ✅ 완료 (2026-04-13)
+- System prompt에 `[역할]` 컨텍스트 추가 (자신/상대 명시, 상대 직업·나이·MBTI 포함)
+- 관계 기억 추출: `after()` + fallback API + 순차 실행
+- JSON 파싱 강화: 마크다운 코드블록 제거, 토큰 한도 512→1024
+- 프롬프트: memory item 최대 3개, detail 20자 제한
+
+### P2 — Matching 기반 Batch Simulation
+- Persona 기반 top-k 후보 선정 (태그 overlap → 나중에 embedding)
+- 선정된 후보와 일괄 시뮬레이션 + 랭킹 뷰
+- 분석 리포트 카테고리/시각화 확장
+
+### 다음 작업 (우선순위)
+- **super_meme NPC 클론** — 밈 문화 특화 NPC
+- **전략 방향 결정** — 데이팅 매칭 vs 메타버스 (분석 문서 작성 완료)
+- **임시 설정 복원** — Sonnet 모델, 20턴, 토큰 512로 복원
+- **메모리 compaction** — 메모리/관계 기억을 압축해서 system prompt에 더 많이 주입
+- Interaction 후 자동 에피소드 메모리 추출
 
 ### P2 — Matching 기반 Batch Simulation
 - Persona 기반 top-k 후보 선정 (태그 overlap → 나중에 embedding)
@@ -330,11 +388,6 @@ AppNav → TipBanner → MemoryPromptBanner → {children}
 - Memory 편집/삭제 UI
 - 시나리오 커스텀 (현재 3개 하드코딩)
 - Clone 버전 관리 UI (`clones.version` 컬럼 존재, UI 없음)
-- Interaction 후 자동 에피소드 메모리 추출 (Phase 2-B에서 같이 해도 됨)
-
-### 관망 (재현 안 됨 / defer)
-- Realtime 채널 안정화 — 유저 테스트에서 재현 안 됨
-- Memory compaction — 토큰 문제 발생 시 재논의
 
 ### Phase 3 이후 (n-to-n, 메타버스)
 - 3인 이상 그룹 상호작용
@@ -360,7 +413,9 @@ AppNav → TipBanner → MemoryPromptBanner → {children}
 | Phase 2 P0 설계 스펙 | `docs/superpowers/specs/2026-04-12-phase2-p0-realism-world-context-design.md` |
 | Clone Visibility 설계 스펙 | `docs/superpowers/specs/2026-04-12-clone-visibility-admin-interactions-design.md` |
 | Phase 2-A/2-B 설계 스펙 | `docs/superpowers/specs/2026-04-12-implicit-persona-clone-identity-design.md` |
-| Plan 문서 9개 | `docs/superpowers/plans/2026-04-*.md` |
+| 전략 분석 (데이팅 vs 메타버스) | `docs/reference/strategic-analysis-dating-vs-metaverse.md` |
+| 튜닝 가이드 | `docs/reference/tuning-guide.md` |
+| Plan 문서 10개 | `docs/superpowers/plans/2026-04-*.md` |
 
 ---
 
@@ -371,7 +426,8 @@ AppNav → TipBanner → MemoryPromptBanner → {children}
 1. `CLAUDE.md` 자동 로드 — 프로젝트 비전·규칙 확보
 2. **이 파일 (`docs/PROJECT_STATE.md`)** 먼저 읽기 — 현재 상태·이슈·백로그
 3. 필요하면 관련 Skill 호출 (persona/interaction/db-schema)
-4. **메모리 배너 간격 복원 확인** (`ONE_HOUR_MS` → 1시간)
-5. Phase 2-B 구현 준비 완료 (Plan 있음)
-6. 튜닝 루프는 `npm run interact`로 지속 가능 (blocking 아님)
-7. 신규 작업은 항상 **기존 결정 재확인** ("재도전 금지" 섹션) 후 시작
+4. **임시 설정 확인** — 현재 Haiku + 15턴 + 200 토큰. Sonnet 복원 시 "알려진 이슈 #7" 참조
+5. **`FEATURE_FLAGS.ENABLE_RELATIONSHIP_MEMORY`** — 현재 `true`. 토큰 절약 시 `false`로
+6. 튜닝 가이드: `docs/reference/tuning-guide.md`
+7. 전략 분석: `docs/reference/strategic-analysis-dating-vs-metaverse.md`
+8. 신규 작업은 항상 **기존 결정 재확인** ("재도전 금지" 섹션) 후 시작
