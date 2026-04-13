@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { createInteractionSchema } from '@/lib/validation/interaction'
-import { DEFAULT_SCENARIOS, INTERACTION_DEFAULTS } from '@/lib/config/interaction'
+import { CONVERSATION_MOODS, INTERACTION_DEFAULTS, getRelationshipStage } from '@/lib/config/interaction'
 import { errors, AppError } from '@/lib/errors'
 import type { Clone } from '@/types/persona'
 
@@ -94,7 +94,7 @@ export async function POST(request: Request) {
     if (!parsed.success) {
       throw errors.validation('입력 검증 실패', parsed.error.flatten())
     }
-    const { participantCloneIds, scenarioId, setting, maxTurns, metadata } = parsed.data
+    const { participantCloneIds, moodId, setting, maxTurns, metadata } = parsed.data
 
     // Clone 2개 fetch + 소유권 검사
     const { data: clones, error: cErr } = await supabase
@@ -110,19 +110,32 @@ export async function POST(request: Request) {
     )
     if (!ownMine) throw errors.forbidden()
 
-    const scenario = DEFAULT_SCENARIOS.find((s) => s.id === scenarioId)
-    if (!scenario) throw errors.validation(`unknown scenario: ${scenarioId}`)
+    const mood = CONVERSATION_MOODS.find((m) => m.id === moodId)
+    if (!mood) throw errors.validation(`unknown mood: ${moodId}`)
 
+    // 관계 단계 조회 (clone_relationships.interaction_count 기반)
     const admin = createServiceClient()
+    const [cloneA, cloneB] = participantCloneIds
+    const { data: relRows } = await admin
+      .from('clone_relationships')
+      .select('interaction_count')
+      .or(`and(clone_id.eq.${cloneA},target_clone_id.eq.${cloneB}),and(clone_id.eq.${cloneB},target_clone_id.eq.${cloneA})`)
+      .limit(1)
+    const interactionCount = relRows?.[0]?.interaction_count ?? 0
+    const relationshipStage = getRelationshipStage(interactionCount)
     const { data: interaction, error: iErr } = await admin
       .from('interactions')
       .insert({
         kind: 'pair-chat',
-        scenario: scenario.label,
+        scenario: mood.label,
         setting: setting ?? null,
         status: 'pending',
         max_turns: maxTurns ?? INTERACTION_DEFAULTS.MAX_TURNS,
-        metadata: { scenarioId: scenario.id, ...(metadata ?? {}) },
+        metadata: {
+          moodId: mood.id,
+          relationshipStage: relationshipStage.id,
+          ...(metadata ?? {}),
+        },
         created_by: user.id,
       })
       .select()
