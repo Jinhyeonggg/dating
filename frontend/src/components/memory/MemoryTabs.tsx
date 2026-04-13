@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -23,7 +24,26 @@ interface MemoryTabsProps {
 type Tab = 'memories' | 'relationships'
 
 export function MemoryTabs({ cloneId, isOwner, memories, relationships }: MemoryTabsProps) {
+  const router = useRouter()
   const [tab, setTab] = useState<Tab>('memories')
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  async function handleDeleteRelationship(relId: string, targetName: string) {
+    if (!confirm(`"${targetName}"에 대한 대화 기억을 삭제할까요?`)) return
+    setDeletingId(relId)
+    try {
+      const res = await fetch(`/api/clone-relationships/${relId}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body?.error?.message ?? '삭제 실패')
+      }
+      router.refresh()
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '삭제 오류')
+    } finally {
+      setDeletingId(null)
+    }
+  }
 
   return (
     <section className="mt-8">
@@ -116,9 +136,19 @@ export function MemoryTabs({ cloneId, isOwner, memories, relationships }: Memory
                       </Badge>
                     )}
                   </div>
-                  <p className="mb-2 text-[10px] text-muted-foreground/60">
-                    마지막 대화: {new Date(rel.updated_at).toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                  </p>
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-[10px] text-muted-foreground/60">
+                      마지막 대화: {new Date(rel.updated_at).toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteRelationship(rel.id, rel.target_name)}
+                      disabled={deletingId === rel.id}
+                      className="text-[10px] text-muted-foreground/40 transition-colors hover:text-destructive disabled:opacity-50"
+                    >
+                      {deletingId === rel.id ? '삭제 중...' : '삭제'}
+                    </button>
+                  </div>
                   <p className="mb-3 text-sm text-foreground/80">{rel.summary}</p>
                   {!isPending && rel.memories.length > 0 && (
                     <ul className="space-y-1.5">
