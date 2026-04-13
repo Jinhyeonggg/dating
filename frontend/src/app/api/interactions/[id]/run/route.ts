@@ -182,18 +182,19 @@ export async function POST(
         .order('turn_number', { ascending: true })
 
       if (events && events.length > 0) {
-        // fire-and-forget: 실패해도 응답에 영향 없음
-        extractRelationshipMemories(
-          events as InteractionEvent[],
-          participants.map((p) => ({
-            id: p.id,
-            name: p.name,
-            persona_json: p.persona_json,
-          })),
-          id,
-        ).catch((err) => {
-          console.error('[relationship] extraction failed (non-blocking):', err)
-        })
+        try {
+          await extractRelationshipMemories(
+            events as InteractionEvent[],
+            participants.map((p) => ({
+              id: p.id,
+              name: p.name,
+              persona_json: p.persona_json,
+            })),
+            id,
+          )
+        } catch (err) {
+          console.error('[relationship] extraction failed:', err)
+        }
       }
     }
 

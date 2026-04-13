@@ -82,7 +82,9 @@ async function extractForOneClone(
     // 기존 row: summary 재요약 + memories append
     let finalSummary = extracted.summary
 
-    if (existing.summary && existing.summary !== extracted.summary) {
+    // placeholder(interaction_count===0)면 재요약 스킵 — 바로 새 summary 사용
+    const isPlaceholder = existing.interaction_count === 0
+    if (!isPlaceholder && existing.summary && existing.summary !== extracted.summary) {
       const newCount = existing.interaction_count + 1
       const resummarizeResponse = await callClaude({
         model: CLAUDE_MODELS.RELATIONSHIP,
