@@ -36,12 +36,14 @@ export function InteractionPairPicker({
         clones={mine}
         value={selected[0]}
         onPick={(id) => onChange([id, selected[1]])}
+        onClear={() => onChange([null, selected[1]])}
       />
       <PickerColumn
         title="상대 (내 Clone / 커뮤니티 / NPC)"
         clones={partnerClones}
         value={selected[1]}
         onPick={(id) => onChange([selected[0], id])}
+        onClear={() => onChange([selected[0], null])}
       />
     </div>
   )
@@ -66,17 +68,41 @@ function PickerColumn({
   clones,
   value,
   onPick,
+  onClear,
 }: {
   title: string
   clones: CloneWithBadge[]
   value: string | null
   onPick: (id: string) => void
+  onClear: () => void
 }) {
+  const selectedClone = value ? clones.find((c) => c.id === value) : null
+  const isCollapsed = selectedClone !== null && selectedClone !== undefined
+
   return (
     <section>
       <h3 className="mb-3 text-sm font-semibold">{title}</h3>
       {clones.length === 0 ? (
         <p className="text-sm text-muted-foreground">선택 가능한 Clone이 없습니다.</p>
+      ) : isCollapsed ? (
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <button
+            type="button"
+            onClick={onClear}
+            className="text-left ring-2 ring-primary"
+          >
+            <Card className="flex h-full min-h-[5rem] flex-col p-3 transition hover:bg-muted/50">
+              <div className="flex items-center gap-2">
+                <span className="truncate font-medium">{selectedClone.name}</span>
+                <CloneBadge clone={selectedClone} />
+                <span className="ml-auto text-xs text-muted-foreground">변경</span>
+              </div>
+              <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
+                {selectedClone.persona_json.self_description ?? '\u00A0'}
+              </p>
+            </Card>
+          </button>
+        </div>
       ) : (
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {clones.map((c) => (
@@ -84,10 +110,7 @@ function PickerColumn({
               key={c.id}
               type="button"
               onClick={() => onPick(c.id)}
-              className={cn(
-                'text-left',
-                value === c.id ? 'ring-2 ring-primary' : ''
-              )}
+              className="text-left"
             >
               <Card className="flex h-full min-h-[5rem] flex-col p-3 transition hover:bg-muted/50">
                 <div className="flex items-center gap-2">
