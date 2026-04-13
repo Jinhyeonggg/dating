@@ -19,12 +19,14 @@ function buildConversationLog(events: InteractionEvent[], cloneNames: Map<string
 }
 
 function parseJsonResponse(response: string): unknown {
-  const jsonStart = response.indexOf('{')
-  const jsonEnd = response.lastIndexOf('}')
+  // 마크다운 코드블록 제거
+  let clean = response.replace(/```json\s*/gi, '').replace(/```\s*/g, '')
+  const jsonStart = clean.indexOf('{')
+  const jsonEnd = clean.lastIndexOf('}')
   if (jsonStart < 0 || jsonEnd < 0) {
     throw new Error('JSON 객체를 찾을 수 없음')
   }
-  return JSON.parse(response.slice(jsonStart, jsonEnd + 1))
+  return JSON.parse(clean.slice(jsonStart, jsonEnd + 1))
 }
 
 async function extractForOneClone(
