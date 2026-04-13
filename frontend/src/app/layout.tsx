@@ -4,6 +4,7 @@ import NextTopLoader from "nextjs-toploader";
 import "./globals.css";
 import { AppNav } from "@/components/nav/AppNav";
 import { MemoryPromptBanner } from "@/components/memory/MemoryPromptBanner";
+import { TipBanner } from "@/components/nav/TipBanner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -40,6 +41,7 @@ export default function RootLayout({
           crawlSpeed={150}
         />
         <AppNav />
+        <TipBanner />
         <MemoryPromptBanner />
         {children}
       </body>

@@ -107,7 +107,7 @@ export function MemoryPromptBanner() {
             <button
               type="button"
               onClick={() => setExpanded(true)}
-              className="flex items-center gap-3 text-left transition-opacity hover:opacity-80"
+              className="group flex items-center gap-3 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-white/60 dark:hover:bg-white/5"
             >
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-lg dark:bg-blue-900/50">
                 ✏️
