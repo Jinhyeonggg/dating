@@ -7,11 +7,25 @@ export const INTERACTION_PRESETS = {
     model: 'claude-haiku-4-5-20251001' as const,
     maxTurns: 15,
     maxOutputTokens: 200,
+    label: '절약 (Haiku 15턴)',
+  },
+  'sonnet-10': {
+    model: 'claude-sonnet-4-6' as const,
+    maxTurns: 10,
+    maxOutputTokens: 512,
+    label: 'Sonnet 10턴',
+  },
+  'sonnet-15': {
+    model: 'claude-sonnet-4-6' as const,
+    maxTurns: 15,
+    maxOutputTokens: 512,
+    label: 'Sonnet 15턴',
   },
   normal: {
     model: 'claude-sonnet-4-6' as const,
     maxTurns: 20,
     maxOutputTokens: 512,
+    label: '정상 (Sonnet 20턴)',
   },
 } as const
 
@@ -69,7 +83,7 @@ export async function getRuntimeConfig(): Promise<RuntimeConfig> {
 
     const modeRaw = configMap.get('interaction_mode')
     const mode: InteractionMode =
-      modeRaw === 'economy' || modeRaw === 'normal' ? modeRaw : 'economy'
+      typeof modeRaw === 'string' && modeRaw in INTERACTION_PRESETS ? (modeRaw as InteractionMode) : 'economy'
     const preset = INTERACTION_PRESETS[mode]
 
     const relMemRaw = configMap.get('relationship_memory_enabled')

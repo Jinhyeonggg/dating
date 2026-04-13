@@ -60,7 +60,7 @@ export async function GET() {
   }
 }
 
-const VALID_MODES: InteractionMode[] = ['economy', 'normal']
+const VALID_MODES: InteractionMode[] = ['economy', 'sonnet-10', 'sonnet-15', 'normal']
 
 type PatchField = {
   bodyKey: string

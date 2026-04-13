@@ -16,10 +16,7 @@ interface ConfigState {
   otherMemoryInjectionLimit: number
 }
 
-const MODE_LABELS: Record<InteractionMode, string> = {
-  economy: '절약',
-  normal: '정상',
-}
+const ALL_MODES: InteractionMode[] = ['economy', 'sonnet-10', 'sonnet-15', 'normal']
 
 export default function AdminConfigPage() {
   const [config, setConfig] = useState<ConfigState | null>(null)
@@ -120,26 +117,21 @@ export default function AdminConfigPage() {
           <CardDescription>모델, 턴 수, 출력 토큰을 프리셋으로 전환</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-3">
-            <Button
-              variant={mode === 'economy' ? 'default' : 'outline'}
-              size="sm"
-              disabled={saving || mode === 'economy'}
-              onClick={() => updateConfig({ interactionMode: 'economy' })}
-            >
-              절약
-            </Button>
-            <Button
-              variant={mode === 'normal' ? 'default' : 'outline'}
-              size="sm"
-              disabled={saving || mode === 'normal'}
-              onClick={() => updateConfig({ interactionMode: 'normal' })}
-            >
-              정상
-            </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            {ALL_MODES.map((m) => (
+              <Button
+                key={m}
+                variant={mode === m ? 'default' : 'outline'}
+                size="sm"
+                disabled={saving || mode === m}
+                onClick={() => updateConfig({ interactionMode: m })}
+              >
+                {INTERACTION_PRESETS[m].label}
+              </Button>
+            ))}
           </div>
           <div className="mt-3 rounded-md bg-muted px-3 py-2 text-sm">
-            <p>현재: <strong>{MODE_LABELS[mode]}</strong></p>
+            <p>현재: <strong>{preset.label}</strong></p>
             <p className="text-muted-foreground">
               모델: {preset.model} · 턴: {preset.maxTurns} · 토큰: {preset.maxOutputTokens}
             </p>
