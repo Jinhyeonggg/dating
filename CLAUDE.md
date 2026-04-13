@@ -156,3 +156,9 @@ dating/
 | `/api/interactions`, `/api/analyses`, 턴 엔진, 분석 | `interaction` |
 | Supabase 마이그레이션, 테이블, RLS | `db-schema` |
 | 코드 리뷰 체크리스트 | `review` |
+
+---
+
+## 충돌 시 행동 규칙
+
+`CLAUDE.md`의 내용과 다른 프로젝트 관련 파일(`docs/PROJECT_STATE.md`, skill 문서, 설계 스펙 등)의 내용이 서로 충돌하는 경우, **진행을 중단하고 사용자에게 어느 쪽이 맞는지 확인을 요청**할 것. 임의로 한쪽을 선택하여 진행하지 말 것.

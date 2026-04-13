@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
-import { FEATURE_FLAGS } from '@/lib/config/interaction'
+import { getRuntimeConfig } from '@/lib/config/runtime'
 import { extractRelationshipMemories } from '@/lib/relationship/service'
 import { errors, AppError } from '@/lib/errors'
 import type { Clone } from '@/types/persona'
@@ -28,7 +28,8 @@ export async function POST(
   ctx: { params: Promise<{ id: string }> }
 ) {
   try {
-    if (!FEATURE_FLAGS.ENABLE_RELATIONSHIP_MEMORY) {
+    const runtimeConfig = await getRuntimeConfig()
+    if (!runtimeConfig.relationshipMemoryEnabled) {
       return NextResponse.json({ ok: true, skipped: true })
     }
 
