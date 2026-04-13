@@ -1,5 +1,6 @@
 export const CLAUDE_MODELS = {
-  INTERACTION: 'claude-sonnet-4-6',
+  // TODO: 테스트 후 'claude-sonnet-4-6'으로 복원
+  INTERACTION: 'claude-haiku-4-5-20251001',
   EXTRACTION: 'claude-haiku-4-5-20251001',
   ANALYSIS: 'claude-sonnet-4-6',
   ONBOARDING: 'claude-haiku-4-5-20251001',
