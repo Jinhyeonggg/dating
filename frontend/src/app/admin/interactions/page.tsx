@@ -81,7 +81,12 @@ export default function AdminInteractionsPage() {
   return (
     <div className="max-w-5xl mx-auto p-6">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Admin — Interactions</h1>
+        <div className="flex items-center gap-4">
+          <h1 className="text-2xl font-bold">Admin — Interactions</h1>
+          <Link href="/admin/clones" className="text-sm text-muted-foreground hover:underline">
+            Clones 관리 →
+          </Link>
+        </div>
         <Button
           variant="outline"
           size="sm"
