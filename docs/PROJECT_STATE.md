@@ -386,31 +386,27 @@ AppNav → TipBanner → MemoryPromptBanner → {children}
 - JSON 파싱 강화: 마크다운 코드블록 제거, 토큰 한도 512→1024
 - 프롬프트: memory item 최대 3개, detail 20자 제한
 
-### P2 — Matching 기반 Batch Simulation
-- Persona 기반 top-k 후보 선정 (태그 overlap → 나중에 embedding)
-- 선정된 후보와 일괄 시뮬레이션 + 랭킹 뷰
-- 분석 리포트 카테고리/시각화 확장
-
 ### 다음 작업 (우선순위)
-- **개발 환경 agent 구축** — 위 "개발 환경 TODO" 4개 항목
 - **super_meme NPC 클론** — 밈 문화 특화 NPC
 - **전략 방향 결정** — 데이팅 매칭 vs 메타버스 (분석 문서 작성 완료)
-- **메모리 compaction** — 메모리/관계 기억을 압축해서 system prompt에 더 많이 주입
 - **관계 단계별 행동 규칙 확장** — 예: 친해진 사이면 농담 허용 범위 확대
 - Interaction 후 자동 에피소드 메모리 추출
 - 실제 프롬프트 출력 로깅 + 토큰 사용량 모니터링
-
-### P2 — Matching 기반 Batch Simulation
-- Persona 기반 top-k 후보 선정 (태그 overlap → 나중에 embedding)
-- 선정된 후보와 일괄 시뮬레이션 + 랭킹 뷰
-- 분석 리포트 카테고리/시각화 확장
 
 ### P3 — Quick wins 묶음
 - Memory 편집/삭제 UI
 - 관계 단계별 행동 규칙 확장 (예: 친해진 사이면 반말 허용)
 - Clone 버전 관리 UI (`clones.version` 컬럼 존재, UI 없음)
 
-### Phase 3 이후 (n-to-n, 메타버스)
+### Phase 3 — 전문 Agent 구축 + 고도화
+- 대화 패턴 품질 평가 agent
+- 토큰 최적화 리서치 agent (VectorDB, RAG, prompt caching)
+- 프롬프트 디버깅 agent (실제 입력 로깅, 토큰/비용 트래킹)
+- 자동 회귀 테스트 agent (A/B 비교)
+- 메모리 compaction (압축 후 system prompt에 더 많이 주입)
+- Matching 기반 Batch Simulation (top-k 후보 자동 선정 + 일괄 시뮬레이션)
+
+### Phase 4 이후 (n-to-n, 메타버스)
 - 3인 이상 그룹 상호작용
 - 관계 그래프
 - Clone 자율 상호작용 스케줄링
@@ -441,6 +437,8 @@ AppNav → TipBanner → MemoryPromptBanner → {children}
 ---
 
 ## 개발 환경 TODO
+
+> Phase 3에서 구현 예정.
 
 프로젝트 개발과 직접 관련된 기능은 아니지만, 효율적 개발을 위해 갖춰야 할 도구들.
 

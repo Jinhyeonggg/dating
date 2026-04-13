@@ -140,7 +140,7 @@ dating/
 
 - **Phase 1 ✅ 완료 (2026-04-12)** — 페르소나 입력 폼, Clone CRUD, 1:1 Interaction 엔진, 호환성 리포트, 메모리 업데이트 API, Supabase Auth + Google OAuth, Vercel 배포
 - **Phase 2 (다음)** — Realtime 스트리밍 안정화, 리포트 시각화 확장, 배치 상호작용, 메모리 compaction, 외부 환경(뉴스·SNS) context 주입
-- **Phase 3** — n-to-n 그룹 상호작용, 관계 그래프, 자율 스케줄링
+- **Phase 3** — 전문 agent 구축 (대화 품질 평가, 토큰 최적화/RAG, 프롬프트 디버깅, 자동 회귀 테스트), 메모리 compaction, Batch Simulation
 - **Phase 4** — 실제 데이터 연동 (카카오톡/인스타 파서 → 페르소나 자동 생성)
 - **Phase 5** — 지속적 메타버스, Clone 자율 에이전트, Human handoff
 
