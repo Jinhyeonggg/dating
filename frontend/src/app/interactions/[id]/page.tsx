@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { InteractionViewer } from '@/components/interaction/InteractionViewer'
+import { RelationshipExtractTrigger } from '@/components/interaction/RelationshipExtractTrigger'
 import { DeleteInteractionButton } from '@/components/interaction/DeleteInteractionButton'
 import type { Clone } from '@/types/persona'
 import type { Interaction, InteractionEvent } from '@/types/interaction'
@@ -82,6 +83,10 @@ export default async function InteractionViewerPage({ params }: PageProps) {
         interaction={interaction}
         initialEvents={(events ?? []) as InteractionEvent[]}
         participants={participants}
+      />
+      <RelationshipExtractTrigger
+        interactionId={interaction.id}
+        status={interaction.status}
       />
     </main>
   )
