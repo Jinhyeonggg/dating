@@ -23,6 +23,8 @@ export interface RuntimeConfig {
   maxTurns: number
   maxOutputTokens: number
   relationshipMemoryEnabled: boolean
+  /** 관계 기억을 대화 시 system prompt에 주입할지 여부 */
+  relationshipMemoryInjection: boolean
 }
 
 /** 코드 상수 기반 fallback (DB 조회 실패 시) */
@@ -33,6 +35,7 @@ function fallbackConfig(): RuntimeConfig {
     maxTurns: INTERACTION_DEFAULTS.MAX_TURNS,
     maxOutputTokens: CLAUDE_LIMITS.MAX_OUTPUT_TOKENS_INTERACTION,
     relationshipMemoryEnabled: FEATURE_FLAGS.ENABLE_RELATIONSHIP_MEMORY,
+    relationshipMemoryInjection: true,
   }
 }
 
@@ -46,7 +49,7 @@ export async function getRuntimeConfig(): Promise<RuntimeConfig> {
     const { data, error } = await service
       .from('platform_config')
       .select('key, value')
-      .in('key', ['interaction_mode', 'relationship_memory_enabled'])
+      .in('key', ['interaction_mode', 'relationship_memory_enabled', 'relationship_memory_injection'])
 
     if (error || !data) {
       console.warn('[runtime-config] DB fetch failed, using fallback:', error?.message)
@@ -64,12 +67,17 @@ export async function getRuntimeConfig(): Promise<RuntimeConfig> {
     const relationshipMemoryEnabled =
       typeof relMemRaw === 'boolean' ? relMemRaw : true
 
+    const relInjRaw = configMap.get('relationship_memory_injection')
+    const relationshipMemoryInjection =
+      typeof relInjRaw === 'boolean' ? relInjRaw : true
+
     return {
       interactionMode: mode,
       interactionModel: preset.model,
       maxTurns: preset.maxTurns,
       maxOutputTokens: preset.maxOutputTokens,
       relationshipMemoryEnabled,
+      relationshipMemoryInjection,
     }
   } catch (err) {
     console.warn('[runtime-config] Unexpected error, using fallback:', err)

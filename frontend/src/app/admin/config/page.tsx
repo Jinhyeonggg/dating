@@ -9,6 +9,7 @@ import { INTERACTION_PRESETS, type InteractionMode } from '@/lib/config/runtime'
 interface ConfigState {
   interactionMode: InteractionMode
   relationshipMemoryEnabled: boolean
+  relationshipMemoryInjection: boolean
 }
 
 const MODE_LABELS: Record<InteractionMode, string> = {
@@ -143,10 +144,10 @@ export default function AdminConfigPage() {
         </CardContent>
       </Card>
 
-      {/* 관계 기억 */}
-      <Card>
+      {/* 관계 기억 추출 */}
+      <Card className="mb-4">
         <CardHeader>
-          <CardTitle className="text-lg">관계 기억</CardTitle>
+          <CardTitle className="text-lg">관계 기억 추출</CardTitle>
           <CardDescription>Interaction 종료 후 양방향 관계 기억 자동 추출</CardDescription>
         </CardHeader>
         <CardContent>
@@ -172,6 +173,39 @@ export default function AdminConfigPage() {
             {config!.relationshipMemoryEnabled
               ? 'Interaction 완료 시 관계 기억이 자동 추출됩니다.'
               : '관계 기억 추출이 비활성화되어 있습니다. 토큰을 절약합니다.'}
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* 대화 기억 주입 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">대화 기억 주입</CardTitle>
+          <CardDescription>과거 대화 기억을 Interaction 시 클론에게 주입</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-3">
+            <Button
+              variant={config!.relationshipMemoryInjection ? 'default' : 'outline'}
+              size="sm"
+              disabled={saving || config!.relationshipMemoryInjection}
+              onClick={() => updateConfig({ relationshipMemoryInjection: true })}
+            >
+              ON
+            </Button>
+            <Button
+              variant={!config!.relationshipMemoryInjection ? 'default' : 'outline'}
+              size="sm"
+              disabled={saving || !config!.relationshipMemoryInjection}
+              onClick={() => updateConfig({ relationshipMemoryInjection: false })}
+            >
+              OFF
+            </Button>
+          </div>
+          <p className="mt-3 text-sm text-muted-foreground">
+            {config!.relationshipMemoryInjection
+              ? '클론이 과거 대화 상대를 기억하고 대화합니다.'
+              : '매번 처음 만나는 것처럼 대화합니다. 기억은 DB에 유지됩니다.'}
           </p>
         </CardContent>
       </Card>

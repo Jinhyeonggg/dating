@@ -56,7 +56,7 @@ export async function prepareClonePrompts(
   memoriesByClone: Map<string, CloneMemory[]>,
   interactionId: string,
   date: string,
-  runtimeConfig?: Pick<RuntimeConfig, 'relationshipMemoryEnabled'>,
+  runtimeConfig?: Pick<RuntimeConfig, 'relationshipMemoryEnabled' | 'relationshipMemoryInjection'>,
 ): Promise<Map<string, ClonePromptContext>> {
   // 1. Load world context (shared across all clones in this interaction)
   const worldRows = await fetchWorldContextRows(date)
@@ -64,10 +64,10 @@ export async function prepareClonePrompts(
   const allStyleCards = getAllStyleCards()
   const result = new Map<string, ClonePromptContext>()
 
-  // 0. Load relationship memories (if feature enabled)
+  // 0. Load relationship memories (if injection enabled)
   const relationshipMap = new Map<string, CloneRelationship>()
-  const relMemEnabled = runtimeConfig?.relationshipMemoryEnabled ?? true
-  if (relMemEnabled && participants.length === 2) {
+  const relInjEnabled = runtimeConfig?.relationshipMemoryInjection ?? true
+  if (relInjEnabled && participants.length === 2) {
     const adminRel = createServiceClient()
     const [a, b] = participants
     const { data: relRows } = await adminRel

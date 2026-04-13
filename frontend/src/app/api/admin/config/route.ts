@@ -26,7 +26,7 @@ export async function GET() {
     const { data, error } = await service
       .from('platform_config')
       .select('key, value')
-      .in('key', ['interaction_mode', 'relationship_memory_enabled'])
+      .in('key', ['interaction_mode', 'relationship_memory_enabled', 'relationship_memory_injection'])
 
     if (error) throw new AppError('INTERNAL', error.message, 500)
 
@@ -37,6 +37,7 @@ export async function GET() {
     return NextResponse.json({
       interactionMode: configMap.get('interaction_mode') ?? 'economy',
       relationshipMemoryEnabled: configMap.get('relationship_memory_enabled') ?? true,
+      relationshipMemoryInjection: configMap.get('relationship_memory_injection') ?? true,
     })
   } catch (err) {
     return toErrorResponse(err)
@@ -79,11 +80,24 @@ export async function PATCH(request: Request) {
         })
     }
 
+    if (body.relationshipMemoryInjection !== undefined) {
+      if (typeof body.relationshipMemoryInjection !== 'boolean') {
+        throw new AppError('VALIDATION', 'relationshipMemoryInjection must be boolean', 400)
+      }
+      await service
+        .from('platform_config')
+        .upsert({
+          key: 'relationship_memory_injection',
+          value: body.relationshipMemoryInjection,
+          updated_at: now,
+        })
+    }
+
     // 변경 후 현재 상태 반환
     const { data } = await service
       .from('platform_config')
       .select('key, value')
-      .in('key', ['interaction_mode', 'relationship_memory_enabled'])
+      .in('key', ['interaction_mode', 'relationship_memory_enabled', 'relationship_memory_injection'])
 
     const configMap = new Map(
       (data ?? []).map((row) => [row.key, row.value])
@@ -92,6 +106,7 @@ export async function PATCH(request: Request) {
     return NextResponse.json({
       interactionMode: configMap.get('interaction_mode') ?? 'economy',
       relationshipMemoryEnabled: configMap.get('relationship_memory_enabled') ?? true,
+      relationshipMemoryInjection: configMap.get('relationship_memory_injection') ?? true,
     })
   } catch (err) {
     return toErrorResponse(err)
