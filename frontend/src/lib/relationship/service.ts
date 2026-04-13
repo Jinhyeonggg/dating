@@ -52,7 +52,7 @@ async function extractForOneClone(
 
   const response = await callClaude({
     model: CLAUDE_MODELS.RELATIONSHIP,
-    system: '당신은 대화 참여자의 내면을 분석하는 심리학자입니다. JSON으로만 응답하세요.',
+    system: 'JSON으로만 응답하세요.',
     messages: [{ role: 'user', content: prompt }],
     maxTokens: CLAUDE_LIMITS.MAX_OUTPUT_TOKENS_RELATIONSHIP,
     temperature: 0.3,
