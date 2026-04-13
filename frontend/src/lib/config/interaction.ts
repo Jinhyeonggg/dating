@@ -12,6 +12,12 @@ export const INTERACTION_DEFAULTS = {
   SYSTEM_PROMPT_TOKEN_BUDGET: 1500,
   HEARTBEAT_WARNING_MS: 5000,
   HEARTBEAT_DANGER_MS: 30000,
+  RELATIONSHIP_MEMORY_INJECTION_LIMIT: 20,
+} as const
+
+/** Phase 2-B: 관계 기억 추출 feature flag. 테스트 후 false로 전환 (API 토큰 절약) */
+export const FEATURE_FLAGS = {
+  ENABLE_RELATIONSHIP_MEMORY: true,
 } as const
 
 export const END_PROMISE_MARKER = '<promise>END</promise>'
