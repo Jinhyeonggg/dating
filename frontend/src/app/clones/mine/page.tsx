@@ -5,11 +5,12 @@ import { PersonaSummaryCard } from '@/components/persona/PersonaSummaryCard'
 import { ExpandablePersonaDetail } from '@/components/persona/ExpandablePersonaDetail'
 import { DeleteCloneButton } from '@/components/clone/DeleteCloneButton'
 import { MyCloneSelector } from '@/components/clone/MyCloneSelector'
-import { MemoryInputBox } from '@/components/memory/MemoryInputBox'
-import { MemoryTimeline } from '@/components/memory/MemoryTimeline'
+import { MemoryTabs } from '@/components/memory/MemoryTabs'
 import { buttonVariants } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { createServiceClient } from '@/lib/supabase/service'
 import type { Clone, CloneMemory } from '@/types/persona'
+import type { CloneRelationship } from '@/types/relationship'
 
 interface PageProps {
   searchParams: Promise<{ selected?: string }>
@@ -68,6 +69,28 @@ export default async function MyClonesPage({ searchParams }: PageProps) {
     .limit(50)
   const memories = (memoriesData ?? []) as CloneMemory[]
 
+  // 관계 기억 fetch
+  const admin = createServiceClient()
+  const { data: relRows } = await admin
+    .from('clone_relationships')
+    .select('*')
+    .eq('clone_id', clone.id)
+    .order('updated_at', { ascending: false })
+
+  let relationships: (CloneRelationship & { target_name: string })[] = []
+  if (relRows && relRows.length > 0) {
+    const targetIds = relRows.map((r) => r.target_clone_id)
+    const { data: targetClones } = await admin
+      .from('clones')
+      .select('id, name')
+      .in('id', targetIds)
+    const nameMap = new Map((targetClones ?? []).map((c) => [c.id, c.name]))
+    relationships = (relRows as CloneRelationship[]).map((r) => ({
+      ...r,
+      target_name: nameMap.get(r.target_clone_id) ?? '알 수 없음',
+    }))
+  }
+
   return (
     <main className="mx-auto max-w-4xl px-4 py-8">
       <header className="mb-6 flex items-center justify-between">
@@ -100,13 +123,12 @@ export default async function MyClonesPage({ searchParams }: PageProps) {
 
       <ExpandablePersonaDetail persona={clone.persona_json} />
 
-      <section className="mt-8">
-        <h2 className="mb-3 text-lg font-semibold">메모리</h2>
-        <div className="mb-4">
-          <MemoryInputBox cloneId={clone.id} />
-        </div>
-        <MemoryTimeline memories={memories} />
-      </section>
+      <MemoryTabs
+        cloneId={clone.id}
+        isOwner={true}
+        memories={memories}
+        relationships={relationships}
+      />
     </main>
   )
 }

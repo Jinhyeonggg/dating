@@ -103,7 +103,7 @@ export function MemoryTabs({ cloneId, isOwner, memories, relationships }: Memory
                 const isPending = rel.interaction_count === 0
                 return (
                 <Card key={rel.id} className={`p-4 ${isPending ? 'border-dashed opacity-70' : ''}`}>
-                  <div className="mb-2 flex items-center justify-between">
+                  <div className="mb-1 flex items-center justify-between">
                     <span className="text-sm font-medium">{rel.target_name}</span>
                     {isPending ? (
                       <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
@@ -116,6 +116,9 @@ export function MemoryTabs({ cloneId, isOwner, memories, relationships }: Memory
                       </Badge>
                     )}
                   </div>
+                  <p className="mb-2 text-[10px] text-muted-foreground/60">
+                    마지막 대화: {new Date(rel.updated_at).toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                  </p>
                   <p className="mb-3 text-sm text-foreground/80">{rel.summary}</p>
                   {!isPending && rel.memories.length > 0 && (
                     <ul className="space-y-1.5">
@@ -127,17 +130,16 @@ export function MemoryTabs({ cloneId, isOwner, memories, relationships }: Memory
                           <span className="flex-1 text-muted-foreground">
                             {m.detail}
                           </span>
-                          {m.interaction_id ? (
+                          <span className="shrink-0 text-[10px] text-muted-foreground/50">
+                            {m.occurred_at}
+                          </span>
+                          {m.interaction_id && (
                             <Link
                               href={`/interactions/${m.interaction_id}`}
                               className="shrink-0 text-[10px] text-blue-500 hover:underline"
                             >
-                              대화 보기
+                              보기
                             </Link>
-                          ) : (
-                            <span className="shrink-0 text-[10px] text-muted-foreground/50">
-                              {m.occurred_at}
-                            </span>
                           )}
                         </li>
                       ))}
