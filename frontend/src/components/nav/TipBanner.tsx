@@ -53,7 +53,7 @@ export function TipBanner() {
     <div className="border-b border-amber-200/60 bg-gradient-to-r from-amber-50/80 to-yellow-50/80 dark:from-amber-950/20 dark:to-yellow-950/20">
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-2.5">
         <div className="flex min-w-0 items-center gap-2.5">
-          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-100 text-xs dark:bg-amber-900/40">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100 text-lg dark:bg-amber-900/40">
             💡
           </span>
           <p className="min-w-0 truncate text-sm text-foreground/80">

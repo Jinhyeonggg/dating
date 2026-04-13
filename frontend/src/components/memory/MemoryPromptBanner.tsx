@@ -8,8 +8,7 @@ import { Card } from '@/components/ui/card'
 
 const LAST_VISIT_KEY = 'clone_last_visit'
 const PROMPT_DISMISSED_KEY = 'clone_memory_prompt_dismissed'
-// TODO: 테스트 후 60 * 60 * 1000 (1시간)으로 복원
-const ONE_HOUR_MS = 5 * 1000
+const ONE_HOUR_MS = 60 * 60 * 1000
 
 interface CloneInfo {
   id: string
