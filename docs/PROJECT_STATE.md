@@ -84,14 +84,14 @@
 - `onboarding/{extract,service}.ts` — 온보딩 추론 파싱 순수 함수 + Haiku 추론 서비스
 - `memory/{service,extract}.ts` — Haiku 추출 서비스 + 파싱/정규화 순수 함수
 - `analysis/{service,parse,prompt}.ts` — Sonnet 분석 서비스 (캐시) + 파싱/프롬프트 순수 함수
-- `prompts/{persona,behavior,interaction,memory,texture,mood,onboarding}.ts` — 프롬프트 템플릿 + 텍스처 규칙 + 온보딩 추론
+- `prompts/{persona,behavior,interaction,memory,texture,mood,onboarding}.ts` — 프롬프트 템플릿 + 텍스처 규칙 + 온보딩 추론. behavior.ts — 기억 활용, 언어 수준, 말투(speech_register) 규칙 추가
 - `styles/{types,index,match}.ts` + `styles/cards/*.ts` — 스타일 카드 시스템 (6장 시드, 4-tier matcher)
 - `mood/{types,parse,fallback,roll}.ts` — Session-start mood roll (Haiku + code fallback)
 - `world/{types,collect,inject}.ts` — 외부 세계 context 수집 + 프롬프트 주입
 - `admin/guard.ts` — env var 기반 admin 체크
 - `clone/publicFields.ts` — 공개 필드 상수 + persona 필터 함수
 - `config/{claude,interaction,analysis}.ts` — 상수 (모델명, 턴 수, 카테고리, realism defaults, `CLAUDE_MODELS.ONBOARDING`)
-- `config/runtime.ts` — 런타임 설정 조회 (`getRuntimeConfig`), `INTERACTION_PRESETS`, `CONVERSATION_MOODS`, `RELATIONSHIP_STAGES`, `getRelationshipStage()`, 프리셋 매핑
+- `config/runtime.ts` — 런타임 설정 조회 (`getRuntimeConfig`), `INTERACTION_PRESETS`, `CONVERSATION_MOODS`, `RELATIONSHIP_STAGES`, `getRelationshipStage()`, `getSpeechRegister()`, 프리셋 매핑
 - `constants/{personaFields,onboardingQuestions}.ts` — `PERSONA_SECTIONS` + 온보딩 질문 세트 (시나리오 3 + 선택지 4)
 - `validation/*.ts` — Zod 스키마 6종 (onboarding 추가)
 - `errors.ts` — `AppError` + `errors` 팩토리
@@ -110,7 +110,7 @@
 
 테이블: `profiles`, `clones`, `clone_memories`, `interactions`, `interaction_participants`, `interaction_events`, `analyses`, `world_context`
 
-**마이그레이션 21개**:
+**마이그레이션 22개**:
 1. `20260411000001_init_profiles.sql`
 2. `20260411000002_init_clones.sql`
 3. `20260411000003_init_clone_memories.sql`
@@ -132,6 +132,7 @@
 19. `20260413000003_platform_config.sql` — platform_config 테이블 + 초기 데이터
 20. `20260413000004_relationship_memory_injection.sql` — 대화 기억 주입 설정 초기 데이터
 21. `20260413000005_split_memory_injection_config.sql` — 기억 주입 설정 pair/other 분리
+22. `20260413000006_speech_register.sql` — clone_relationships.speech_register 컬럼
 
 **RLS 헬퍼 함수 (SECURITY DEFINER)**:
 - `interaction_is_mine(uuid)` — 내가 생성했거나 내 clone이 참여한 interaction인지 판정
@@ -140,7 +141,7 @@
 모든 마이그레이션 Supabase Cloud 적용 완료.
 
 ### 테스트
-- Vitest 141개 passing (Phase 1: 53 + Phase 2 P0: 75 + Clone Visibility: 7 + Phase 2-A: 6)
+- Vitest 159개 passing (Phase 1: 53 + Phase 2 P0: 75 + Clone Visibility: 7 + Phase 2-A: 6 + Conversation Pattern: 18)
 - 순수 함수 전부 TDD 커버
 - UI / API / Supabase / Claude 호출은 수동 검증
 
@@ -196,6 +197,7 @@
 | 첫 메시지에 상대 프로필 하이라이트 주입 | 엔진이 listener의 persona에서 직업/취미/MBTI 추출 → first user message에 포함 |
 | 시나리오를 관계 단계(자동) + 대화 분위기(유저 선택)로 분리 | 클론 기억 누적과 시나리오 모순 제거. interaction_count 기반 deterministic |
 | 기억 주입을 pair/other로 분리 + limit 설정 | 대상 클론 기억과 다른 클론 기억을 독립 제어. admin 런타임 토글 |
+| 관계별 말투(speech_register) | 나이 차이 + 대화 횟수로 자동 결정. 대화 중 <banmal-switch/>로 전환. 스타일 카드 매칭 연동 |
 
 ---
 
@@ -395,6 +397,7 @@ AppNav → TipBanner → MemoryPromptBanner → {children}
 - **메모리 compaction** — 메모리/관계 기억을 압축해서 system prompt에 더 많이 주입
 - **관계 단계별 행동 규칙 확장** — 예: 친해진 사이면 반말 허용
 - Interaction 후 자동 에피소드 메모리 추출
+- 실제 프롬프트 출력 로깅 + 토큰 사용량 모니터링
 
 ### P2 — Matching 기반 Batch Simulation
 - Persona 기반 top-k 후보 선정 (태그 overlap → 나중에 embedding)
