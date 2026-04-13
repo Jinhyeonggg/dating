@@ -104,8 +104,21 @@ system prompt에 관계 기억과 함께 말투 상태 주입:
 | `lib/interaction/orchestrate.ts` | 관계에서 `speech_register` 읽기, null이면 자동 결정 + DB 저장, prompt에 주입 |
 | `lib/interaction/engine.ts` | `<banmal-switch/>` 태그 파싱 + DB 양방향 업데이트 |
 | `types/relationship.ts` | `CloneRelationship`에 `speech_register` 필드 추가 |
+| `lib/styles/match.ts` | `pickStyleCards()`에 `speechRegister` 파라미터 추가, 매칭 로직 변경 |
 
-## 4. 범위 밖
+## 4. 스타일 카드 연동
+
+`pickStyleCards()`에서 `speech_register` 값을 받아 카드 매칭에 사용:
+- `formal` → formal 계열 카드만 매칭 (`formal_polite_young`, `formal_polite_mature`)
+- `banmal-ready` → formal 계열 카드 사용 (아직 존댓말)
+- `casual` → casual 계열 카드 매칭 (`casual_close_male`, `casual_close_female`, `default_casual`)
+- `mixed_warming_up` 카드는 `banmal-ready` 상태에서 매칭 가능
+
+변경 파일:
+- `lib/styles/match.ts` — `pickStyleCards()` 파라미터에 `speechRegister` 추가, 매칭 로직 변경
+- `lib/interaction/orchestrate.ts` — `pickStyleCards()` 호출 시 `speechRegister` 전달
+
+## 5. 범위 밖
 
 - 사투리 처리
 - 유저가 말투를 수동 설정하는 UI
