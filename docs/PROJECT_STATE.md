@@ -9,7 +9,7 @@
 
 | 항목 | 상태 |
 |---|---|
-| 현재 단계 | **Phase 2-A ✅ + Phase 2-B ✅ (관계 기억) + 롤 매핑 수정 ✅ + Admin Runtime Config ✅** |
+| 현재 단계 | **Phase 2-A ✅ + Phase 2-B ✅ (관계 기억) + 롤 매핑 수정 ✅ + Admin Runtime Config ✅ + 시나리오 재설계 ✅** |
 | 프로덕션 배포 | ✅ `https://frontend-eta-neon-97.vercel.app` |
 | 마지막 태그 | `phase1-complete` |
 | 다음 단계 | 튜닝 + super_meme NPC + 전략 방향 결정 |
@@ -90,7 +90,7 @@
 - `world/{types,collect,inject}.ts` — 외부 세계 context 수집 + 프롬프트 주입
 - `admin/guard.ts` — env var 기반 admin 체크
 - `clone/publicFields.ts` — 공개 필드 상수 + persona 필터 함수
-- `config/{claude,interaction,analysis}.ts` — 상수 (모델명, 턴 수, 시나리오, 카테고리, realism defaults, `CLAUDE_MODELS.ONBOARDING`)
+- `config/{claude,interaction,analysis}.ts` — 상수 (모델명, 턴 수, 시나리오, 카테고리, realism defaults, `CLAUDE_MODELS.ONBOARDING`, `getRelationshipStage()`, `CONVERSATION_MOODS`, `RELATIONSHIP_STAGES`)
 - `config/runtime.ts` — 런타임 설정 조회 (`getRuntimeConfig`), 프리셋 매핑
 - `constants/{personaFields,onboardingQuestions}.ts` — `PERSONA_SECTIONS` + 온보딩 질문 세트 (시나리오 3 + 선택지 4)
 - `validation/*.ts` — Zod 스키마 6종 (onboarding 추가)
@@ -101,7 +101,7 @@
 - `nav/` — `AppNav` (서버, 받은 요청 개수 뱃지 포함) + `NavLinks` + `BackButton` + `LogoutButton` + `NotificationBell` (드롭다운 + seen 처리) + **`TipBanner`** (랜덤 팁, 세션별)
 - `persona/` — `ArrayInput`, `PersonaFieldRow`, `PersonaSection`, `PersonaQuickForm`, `PersonaFullEditor`, `PersonaSummaryCard`, `PersonaDetailView`, `ExpandablePersonaDetail`
 - `clone/` — `CloneCard`, `CloneList`, `CloneNpcBadge`, `DeleteCloneButton`, `MyCloneSelector`
-- `interaction/` — `InteractionViewer`, `MessageBubble`, `TypingIndicator`, `InteractionPairPicker`, `ScenarioPicker`, `InteractionStatusBadge`, `InteractionProgressBar`, `NewInteractionHero`, `DeleteInteractionButton`
+- `interaction/` — `InteractionViewer`, `MessageBubble`, `TypingIndicator`, `InteractionPairPicker`, `MoodPicker`, `InteractionStatusBadge`, `InteractionProgressBar`, `NewInteractionHero`, `DeleteInteractionButton`
 - `memory/` — `MemoryInputBox`, `MemoryItem`, `MemoryTimeline`, **`MemoryPromptBanner`** (1시간 미접속 후 재방문 시 메모리 업데이트 유도, 현재 테스트용 5초)
 - `onboarding/` — `OnboardingCard` (질문 카드 + 진행 바), `TraitsPreview` (추론 결과 프리뷰), `OnboardingFlow` (전체 흐름 관리 + 에러 화면 + 스피너)
 - `analysis/` — `AnalysisReport`, `AnalysisGenerateButton`, `CategoryCard`, `ScoreBar`
@@ -192,6 +192,7 @@
 | Persona 필드 필터링은 API 레이어 | RLS는 row 단위만 가능. column masking은 서버 코드(`filterPersonaByPublicFields`)에서 수행 |
 | 인사는 1턴 제한 | behavior 규칙으로 강제. 2턴째부터 본론(프로필 기반 질문/관심사)으로 |
 | 첫 메시지에 상대 프로필 하이라이트 주입 | 엔진이 listener의 persona에서 직업/취미/MBTI 추출 → first user message에 포함 |
+| 시나리오를 관계 단계(자동) + 대화 분위기(유저 선택)로 분리 | 클론 기억 누적과 시나리오 모순 제거. interaction_count 기반 deterministic |
 
 ---
 
@@ -390,7 +391,7 @@ AppNav → TipBanner → MemoryPromptBanner → {children}
 
 ### P3 — Quick wins 묶음
 - Memory 편집/삭제 UI
-- 시나리오 커스텀 (현재 3개 하드코딩)
+- 관계 단계별 행동 규칙 확장 (예: 친해진 사이면 반말 허용)
 - Clone 버전 관리 UI (`clones.version` 컬럼 존재, UI 없음)
 
 ### Phase 3 이후 (n-to-n, 메타버스)
