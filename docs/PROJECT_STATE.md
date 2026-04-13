@@ -67,7 +67,7 @@
 - `/admin/world` — world context 수동 관리
 - `/admin/interactions` — 전체 interaction 조회 + 삭제 + "Stuck 정리" 버튼 (1시간+ running → failed 전환)
 - `/admin/clones` — 전체 clone 조회 + 삭제 (관련 interaction 일괄 삭제)
-- `/admin/config` — 플랫폼 설정 (Interaction 모드 토글, 관계 기억 on/off)
+- `/admin/config` — 플랫폼 설정 (Interaction 모드, 관계 기억 추출, 대상/다른 클론 기억 주입 + limit)
 - `GET|POST /api/admin/interactions` / `DELETE /api/admin/interactions/[id]`
 - `GET /api/admin/clones` / `DELETE /api/admin/clones/[id]`
 - `GET|PATCH /api/admin/config` — 런타임 설정 조회/변경
@@ -90,8 +90,8 @@
 - `world/{types,collect,inject}.ts` — 외부 세계 context 수집 + 프롬프트 주입
 - `admin/guard.ts` — env var 기반 admin 체크
 - `clone/publicFields.ts` — 공개 필드 상수 + persona 필터 함수
-- `config/{claude,interaction,analysis}.ts` — 상수 (모델명, 턴 수, 시나리오, 카테고리, realism defaults, `CLAUDE_MODELS.ONBOARDING`, `getRelationshipStage()`, `CONVERSATION_MOODS`, `RELATIONSHIP_STAGES`)
-- `config/runtime.ts` — 런타임 설정 조회 (`getRuntimeConfig`), 프리셋 매핑
+- `config/{claude,interaction,analysis}.ts` — 상수 (모델명, 턴 수, 카테고리, realism defaults, `CLAUDE_MODELS.ONBOARDING`)
+- `config/runtime.ts` — 런타임 설정 조회 (`getRuntimeConfig`), `INTERACTION_PRESETS`, `CONVERSATION_MOODS`, `RELATIONSHIP_STAGES`, `getRelationshipStage()`, 프리셋 매핑
 - `constants/{personaFields,onboardingQuestions}.ts` — `PERSONA_SECTIONS` + 온보딩 질문 세트 (시나리오 3 + 선택지 4)
 - `validation/*.ts` — Zod 스키마 6종 (onboarding 추가)
 - `errors.ts` — `AppError` + `errors` 팩토리
@@ -110,7 +110,7 @@
 
 테이블: `profiles`, `clones`, `clone_memories`, `interactions`, `interaction_participants`, `interaction_events`, `analyses`, `world_context`
 
-**마이그레이션 19개**:
+**마이그레이션 21개**:
 1. `20260411000001_init_profiles.sql`
 2. `20260411000002_init_clones.sql`
 3. `20260411000003_init_clone_memories.sql`
@@ -130,6 +130,8 @@
 17. `20260412000008_fix_clones_interaction_participant_rls.sql` — 비공개 clone도 interaction 상대이면 조회 가능
 18. `20260412000009_fix_clones_rls_recursion.sql` — `clone_is_my_interaction_partner` SECURITY DEFINER로 재귀 방지
 19. `20260413000003_platform_config.sql` — platform_config 테이블 + 초기 데이터
+20. `20260413000004_relationship_memory_injection.sql` — 대화 기억 주입 설정 초기 데이터
+21. `20260413000005_split_memory_injection_config.sql` — 기억 주입 설정 pair/other 분리
 
 **RLS 헬퍼 함수 (SECURITY DEFINER)**:
 - `interaction_is_mine(uuid)` — 내가 생성했거나 내 clone이 참여한 interaction인지 판정
@@ -193,6 +195,7 @@
 | 인사는 1턴 제한 | behavior 규칙으로 강제. 2턴째부터 본론(프로필 기반 질문/관심사)으로 |
 | 첫 메시지에 상대 프로필 하이라이트 주입 | 엔진이 listener의 persona에서 직업/취미/MBTI 추출 → first user message에 포함 |
 | 시나리오를 관계 단계(자동) + 대화 분위기(유저 선택)로 분리 | 클론 기억 누적과 시나리오 모순 제거. interaction_count 기반 deterministic |
+| 기억 주입을 pair/other로 분리 + limit 설정 | 대상 클론 기억과 다른 클론 기억을 독립 제어. admin 런타임 토글 |
 
 ---
 
@@ -212,6 +215,8 @@ Interaction 시 Clone별 system prompt는 다음 순서로 조립 (`orchestrate.
  8. WORLD CONTEXT               ← world_context 테이블
  9. BEHAVIOR INSTRUCTIONS       ← lib/prompts/behavior.ts
 ```
+
+- 관계 기억: 1인칭 주관적 기억 (2026-04-13 변경). pair/other 분리, limit admin 설정.
 
 **현재 제약 (토큰 절약 모드):**
 - 메모리/관계 기억의 system prompt 반영은 최소한으로 제한 중
@@ -255,6 +260,11 @@ Interaction 시 Clone별 system prompt는 다음 순서로 조립 (`orchestrate.
 - sessionStorage 기반 dismiss (새 탭에선 다시 표시)
 - 액션 링크 버튼으로 관련 페이지 이동
 
+### Clone Picker 접기
+- Interaction 생성 시 참여자 선택 후 나머지 카드 자동 접힘
+- 선택된 카드 클릭 → 선택 해제 + 전체 펼침
+- "변경" 힌트로 재선택 가능 표시
+
 ### 레이아웃 구조 (layout.tsx)
 ```
 AppNav → TipBanner → MemoryPromptBanner → {children}
@@ -284,11 +294,12 @@ AppNav → TipBanner → MemoryPromptBanner → {children}
 - 관계 기억 on/off 독립 토글
 - `platform_config` 테이블 (마이그레이션 19번)
 
-### 8. AI 역할 혼동 (Haiku 한계) — 완화됨
+### 8. AI 역할 혼동 — 완화됨 + 관계 기억 1인칭 수정
 - **증상**: AI가 자기 프로필 정보를 상대방의 것으로 착각하고 질문
 - **원인**: system prompt에 자기 정보만 있고 상대가 누구인지 명시 안 됨 + Haiku의 약한 instruction following
 - **완화**: `[역할]` 컨텍스트 추가. Sonnet 복원 시 크게 개선될 것으로 예상
 - **추가 관찰 필요**: Haiku에서 "알지 못하는 것을 아는 척" 하는 문제 (예: 롤토체스를 모를 법한 clone이 설명하는 척)
+- 관계 기억 추출 프롬프트를 3인칭 관찰자 → 1인칭 주관적 기억으로 변경
 
 ### 3. Stuck Interaction 방지 — 해결됨 (2026-04-13)
 - **이전 증상**: Vercel 300초 타임아웃 또는 엔진 에러 시 status가 `running`으로 영구 남음
@@ -382,6 +393,7 @@ AppNav → TipBanner → MemoryPromptBanner → {children}
 - **super_meme NPC 클론** — 밈 문화 특화 NPC
 - **전략 방향 결정** — 데이팅 매칭 vs 메타버스 (분석 문서 작성 완료)
 - **메모리 compaction** — 메모리/관계 기억을 압축해서 system prompt에 더 많이 주입
+- **관계 단계별 행동 규칙 확장** — 예: 친해진 사이면 반말 허용
 - Interaction 후 자동 에피소드 메모리 추출
 
 ### P2 — Matching 기반 Batch Simulation
