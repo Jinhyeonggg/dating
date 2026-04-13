@@ -62,14 +62,14 @@ export async function POST(
       return NextResponse.json({ ok: true, skipped: true, reason: 'not_2_participants' })
     }
 
-    // 이미 추출 완료되었는지 확인
+    // 양방향 모두 추출되었는지 확인 (한쪽만 되었으면 재실행)
     const [a, b] = clones
     const { data: existingRels } = await admin
       .from('clone_relationships')
-      .select('interaction_count')
+      .select('clone_id, target_clone_id, interaction_count')
       .or(`and(clone_id.eq.${a.id},target_clone_id.eq.${b.id}),and(clone_id.eq.${b.id},target_clone_id.eq.${a.id})`)
-    const alreadyExtracted = (existingRels ?? []).some((r) => r.interaction_count > 0)
-    if (alreadyExtracted) {
+    const extractedCount = (existingRels ?? []).filter((r) => r.interaction_count > 0).length
+    if (extractedCount >= 2) {
       return NextResponse.json({ ok: true, skipped: true, reason: 'already_extracted' })
     }
 
