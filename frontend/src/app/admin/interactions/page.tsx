@@ -86,6 +86,9 @@ export default function AdminInteractionsPage() {
           <Link href="/admin/clones" className="text-sm text-muted-foreground hover:underline">
             Clones 관리 →
           </Link>
+          <Link href="/admin/config" className="text-sm text-muted-foreground hover:underline">
+            설정 →
+          </Link>
         </div>
         <Button
           variant="outline"

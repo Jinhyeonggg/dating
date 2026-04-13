@@ -60,6 +60,9 @@ export default function AdminClonesPage() {
         <Link href="/admin/interactions" className="text-sm text-muted-foreground hover:underline">
           Interactions 관리 →
         </Link>
+        <Link href="/admin/config" className="text-sm text-muted-foreground hover:underline">
+          설정 →
+        </Link>
       </div>
 
       {loading && (
