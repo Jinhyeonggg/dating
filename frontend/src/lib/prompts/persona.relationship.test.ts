@@ -15,6 +15,7 @@ describe('renderRelationshipMemory', () => {
         { topic: '직장', detail: '이직 고민 중', occurred_at: '2026-04-12' },
       ],
       created_at: '2026-04-10',
+      speech_register: null,
       updated_at: '2026-04-12',
     }
     const result = renderRelationshipMemory(rel, '민지')
@@ -42,6 +43,7 @@ describe('renderRelationshipMemory', () => {
       interaction_count: 5,
       summary: 'test',
       memories,
+      speech_register: null,
       created_at: '2026-04-01',
       updated_at: '2026-04-25',
     }
