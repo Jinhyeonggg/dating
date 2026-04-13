@@ -105,6 +105,15 @@ export async function prepareClonePrompts(
     const relKey = otherClone ? `${clone.id}→${otherClone.id}` : null
     const relationship = relKey ? relationshipMap.get(relKey) ?? null : null
 
+    // 상대방 핵심 정보 추출 (역할 혼동 방지)
+    const partnerHighlights = otherClone
+      ? [
+          otherClone.persona_json.occupation,
+          otherClone.persona_json.age ? `${otherClone.persona_json.age}세` : null,
+          otherClone.persona_json.mbti,
+        ].filter(Boolean).join(', ')
+      : ''
+
     const systemPrompt = buildEnhancedSystemPrompt({
       persona,
       memories,
@@ -116,6 +125,9 @@ export async function prepareClonePrompts(
       styleCards,
       mood,
       worldSnippet,
+      partnerContext: otherClone
+        ? { name: otherClone.name, highlights: partnerHighlights }
+        : null,
     })
 
     result.set(clone.id, {

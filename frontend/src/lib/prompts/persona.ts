@@ -114,6 +114,8 @@ export interface EnhancedPromptInput {
   styleCards?: StyleCard[]
   mood?: MoodState
   worldSnippet?: WorldSnippet | null
+  /** 대화 상대 기본 정보 — 역할 혼동 방지용 */
+  partnerContext?: { name: string; highlights: string } | null
 }
 
 function renderMoodHint(mood: MoodState): string {
@@ -141,12 +143,19 @@ function renderStyleCards(cards: StyleCard[]): string {
 }
 
 export function buildEnhancedSystemPrompt(input: EnhancedPromptInput): string {
-  const { persona, memories, inferredTraits, relationshipMemory, textureRules, styleCards, mood, worldSnippet } = input
+  const { persona, memories, inferredTraits, relationshipMemory, textureRules, styleCards, mood, worldSnippet, partnerContext } = input
 
   const parts: string[] = []
 
   // 1. Texture rules (baseline)
   if (textureRules) parts.push(textureRules)
+
+  // 1.5. Role context — 자신/상대 명확화
+  if (partnerContext) {
+    parts.push(
+      `[역할]\n당신은 "${persona.name}"입니다. 위 페르소나가 당신의 정보입니다.\n상대방은 "${partnerContext.name}"입니다.${partnerContext.highlights ? ` (${partnerContext.highlights})` : ''}\n당신의 정보를 상대방의 것으로 착각하지 마세요.`
+    )
+  }
 
   // 2. Persona core
   parts.push(renderPersonaCore(persona))
