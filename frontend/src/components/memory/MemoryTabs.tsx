@@ -12,6 +12,7 @@ import type { CloneRelationship } from '@/types/relationship'
 
 interface RelationshipWithName extends CloneRelationship {
   target_name: string
+  last_interaction_at?: string | null
 }
 
 interface MemoryTabsProps {
@@ -148,7 +149,7 @@ export function MemoryTabs({ cloneId, isOwner, memories, relationships }: Memory
                   </div>
                   <div className="mb-2 flex items-center justify-between">
                     <span className="text-[10px] text-muted-foreground/60">
-                      마지막 대화: {new Date(rel.updated_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                      마지막 대화: {new Date(rel.last_interaction_at ?? rel.updated_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
                     </span>
                     <button
                       type="button"

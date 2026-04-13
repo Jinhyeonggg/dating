@@ -45,7 +45,7 @@ export default async function CloneDetailPage({ params }: PageProps) {
   const memories = (memoriesData ?? []) as CloneMemory[]
 
   // 관계 기억 fetch (본인 clone만)
-  let relationships: (CloneRelationship & { target_name: string })[] = []
+  let relationships: (CloneRelationship & { target_name: string; last_interaction_at: string | null })[] = []
   if (isOwner) {
     const admin = createServiceClient()
     const { data: relRows } = await admin
@@ -55,7 +55,6 @@ export default async function CloneDetailPage({ params }: PageProps) {
       .order('updated_at', { ascending: false })
 
     if (relRows && relRows.length > 0) {
-      // target clone 이름 조회
       const targetIds = relRows.map((r) => r.target_clone_id)
       const { data: targetClones } = await admin
         .from('clones')
@@ -63,9 +62,33 @@ export default async function CloneDetailPage({ params }: PageProps) {
         .in('id', targetIds)
       const nameMap = new Map((targetClones ?? []).map((c) => [c.id, c.name]))
 
+      // 내 clone이 참여한 최신 interaction ended_at 조회
+      const { data: myParticipations } = await admin
+        .from('interaction_participants')
+        .select('interaction_id')
+        .eq('clone_id', id)
+      const myInteractionIds = (myParticipations ?? []).map((p) => p.interaction_id)
+
+      const lastInteractionMap = new Map<string, string>()
+      if (myInteractionIds.length > 0) {
+        for (const targetId of targetIds) {
+          const { data: shared } = await admin
+            .from('interaction_participants')
+            .select('interactions!inner(ended_at)')
+            .eq('clone_id', targetId)
+            .in('interaction_id', myInteractionIds)
+            .not('interactions.ended_at', 'is', null)
+            .order('interaction_id', { ascending: false })
+            .limit(1)
+          const endedAt = (shared?.[0] as unknown as { interactions: { ended_at: string } })?.interactions?.ended_at
+          if (endedAt) lastInteractionMap.set(targetId, endedAt)
+        }
+      }
+
       relationships = (relRows as CloneRelationship[]).map((r) => ({
         ...r,
         target_name: nameMap.get(r.target_clone_id) ?? '알 수 없음',
+        last_interaction_at: lastInteractionMap.get(r.target_clone_id) ?? null,
       }))
     }
   }
