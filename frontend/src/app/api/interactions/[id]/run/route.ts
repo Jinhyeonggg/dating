@@ -165,6 +165,7 @@ export async function POST(
             name: p.name,
             persona_json: p.persona_json,
           })),
+          id,
         ).catch((err) => {
           console.error('[relationship] extraction failed (non-blocking):', err)
         })

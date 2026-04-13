@@ -19,11 +19,24 @@ const KIND_VARIANTS: Record<
   preference_update: 'secondary',
 }
 
+function formatDateTime(isoDate: string, isoDatetime: string): string {
+  try {
+    const d = new Date(isoDatetime)
+    const date = isoDate // YYYY-MM-DD
+    const hours = String(d.getHours()).padStart(2, '0')
+    const mins = String(d.getMinutes()).padStart(2, '0')
+    const secs = String(d.getSeconds()).padStart(2, '0')
+    return `${date} ${hours}:${mins}:${secs}`
+  } catch {
+    return isoDate
+  }
+}
+
 export function MemoryItem({ memory }: { memory: CloneMemory }) {
   return (
     <Card className="p-4">
       <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
-        <span>{memory.occurred_at}</span>
+        <span>{formatDateTime(memory.occurred_at, memory.created_at)}</span>
         <Badge variant={KIND_VARIANTS[memory.kind]} className="text-[10px]">
           {KIND_LABELS[memory.kind]}
         </Badge>

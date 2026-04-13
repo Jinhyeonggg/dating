@@ -9,8 +9,7 @@ import { NewInteractionHero } from '@/components/interaction/NewInteractionHero'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
-import { MemoryInputBox } from '@/components/memory/MemoryInputBox'
-import { MemoryTimeline } from '@/components/memory/MemoryTimeline'
+import { MemoryTabs } from '@/components/memory/MemoryTabs'
 import { createServiceClient } from '@/lib/supabase/service'
 import type { Clone, CloneMemory } from '@/types/persona'
 import type { CloneRelationship } from '@/types/relationship'
@@ -158,54 +157,12 @@ export default async function CloneDetailPage({ params }: PageProps) {
         </Card>
       )}
 
-      <section className="mt-8">
-        <h2 className="mb-3 text-lg font-semibold">메모리</h2>
-        {isOwner && (
-          <div className="mb-4">
-            <MemoryInputBox cloneId={clone.id} />
-          </div>
-        )}
-        <MemoryTimeline memories={memories} />
-      </section>
-
-      {/* 관계 기억 섹션 — 유저 직접 메모리와 분리 */}
-      {isOwner && relationships.length > 0 && (
-        <section className="mt-8">
-          <h2 className="mb-3 text-lg font-semibold">대화 기억</h2>
-          <p className="mb-4 text-xs text-muted-foreground">
-            다른 클론과의 대화에서 자동으로 형성된 기억입니다
-          </p>
-          <div className="space-y-4">
-            {relationships.map((rel) => (
-              <Card key={rel.id} className="p-4">
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="text-sm font-medium">{rel.target_name}</span>
-                  <span className="text-xs text-muted-foreground">
-                    대화 {rel.interaction_count}회
-                  </span>
-                </div>
-                <p className="mb-3 text-sm text-foreground/80">{rel.summary}</p>
-                {rel.memories.length > 0 && (
-                  <ul className="space-y-1">
-                    {rel.memories.slice(0, 10).map((m, i) => (
-                      <li key={i} className="text-xs text-muted-foreground">
-                        <span className="mr-1 font-medium text-foreground/60">{m.topic}</span>
-                        {m.detail}
-                        <span className="ml-1 text-muted-foreground/60">({m.occurred_at})</span>
-                      </li>
-                    ))}
-                    {rel.memories.length > 10 && (
-                      <li className="text-xs text-muted-foreground">
-                        +{rel.memories.length - 10}개 더...
-                      </li>
-                    )}
-                  </ul>
-                )}
-              </Card>
-            ))}
-          </div>
-        </section>
-      )}
+      <MemoryTabs
+        cloneId={clone.id}
+        isOwner={isOwner}
+        memories={memories}
+        relationships={relationships}
+      />
     </main>
   )
 }

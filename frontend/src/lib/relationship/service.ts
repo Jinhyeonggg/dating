@@ -35,6 +35,7 @@ async function extractForOneClone(
   targetName: string,
   conversationLog: string,
   existing: CloneRelationship | null,
+  interactionId: string,
 ): Promise<void> {
   const input: RelationshipExtractionInput = {
     conversationLog,
@@ -69,6 +70,12 @@ async function extractForOneClone(
 
   const extracted = parseRelationshipExtraction(parsed)
 
+  // 각 memory item에 interaction_id 주입 (UI에서 링크용)
+  const memoriesWithId = extracted.new_memories.map((m) => ({
+    ...m,
+    interaction_id: interactionId,
+  }))
+
   const admin = createServiceClient()
 
   if (existing) {
@@ -100,7 +107,7 @@ async function extractForOneClone(
 
     const mergedMemories: RelationshipMemoryItem[] = [
       ...existing.memories,
-      ...extracted.new_memories,
+      ...memoriesWithId,
     ]
 
     const { error } = await admin
@@ -125,7 +132,7 @@ async function extractForOneClone(
         target_clone_id: targetCloneId,
         interaction_count: 1,
         summary: extracted.summary,
-        memories: extracted.new_memories,
+        memories: memoriesWithId,
       })
 
     if (error) {
@@ -141,6 +148,7 @@ async function extractForOneClone(
 export async function extractRelationshipMemories(
   events: InteractionEvent[],
   participants: { id: string; name: string; persona_json: Persona }[],
+  interactionId: string,
 ): Promise<void> {
   if (participants.length !== 2 || events.length === 0) return
 
@@ -170,12 +178,14 @@ export async function extractRelationshipMemories(
       cloneB.id, cloneB.name,
       conversationLog,
       existingMap.get(`${cloneA.id}→${cloneB.id}`) ?? null,
+      interactionId,
     ),
     extractForOneClone(
       cloneB.id, cloneB.name, cloneB.persona_json,
       cloneA.id, cloneA.name,
       conversationLog,
       existingMap.get(`${cloneB.id}→${cloneA.id}`) ?? null,
+      interactionId,
     ),
   ])
 }
