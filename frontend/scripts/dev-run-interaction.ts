@@ -17,13 +17,13 @@ import * as dotenv from 'dotenv'
 import * as path from 'path'
 import { createClient } from '@supabase/supabase-js'
 import { runInteraction } from '../src/lib/interaction/engine'
-import { DEFAULT_SCENARIOS, INTERACTION_DEFAULTS } from '../src/lib/config/interaction'
+import { CONVERSATION_MOODS, INTERACTION_DEFAULTS } from '../src/lib/config/interaction'
 import type { Clone } from '../src/types/persona'
 
 dotenv.config({ path: path.resolve(__dirname, '../.env.local') })
 
 async function main() {
-  const [cloneAId, cloneBId, scenarioId = 'online-first-match'] = process.argv.slice(2)
+  const [cloneAId, cloneBId, scenarioId = 'casual'] = process.argv.slice(2)
   if (!cloneAId || !cloneBId) {
     console.error('Usage: dev-run-interaction.ts <cloneA-id> <cloneB-id> [scenarioId]')
     process.exit(1)
@@ -52,7 +52,7 @@ async function main() {
   ].filter(Boolean) as Clone[]
 
   // 2. Scenario
-  const scenario = DEFAULT_SCENARIOS.find((s) => s.id === scenarioId)
+  const scenario = CONVERSATION_MOODS.find((s: { id: string }) => s.id === scenarioId)
   if (!scenario) {
     console.error(`unknown scenario: ${scenarioId}`)
     process.exit(1)

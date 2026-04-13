@@ -26,7 +26,7 @@ dotenv.config({ path: path.resolve(__dirname, '../.env.local') })
 import { createServiceClient } from '../src/lib/supabase/service'
 import { prepareClonePrompts } from '../src/lib/interaction/orchestrate'
 import { runInteraction } from '../src/lib/interaction/engine'
-import { DEFAULT_SCENARIOS, INTERACTION_DEFAULTS } from '../src/lib/config/interaction'
+import { CONVERSATION_MOODS, INTERACTION_DEFAULTS } from '../src/lib/config/interaction'
 import type { Clone, CloneMemory } from '../src/types/persona'
 
 // ── ANSI colors ────────────────────────────────────────────────────────────
@@ -158,7 +158,7 @@ ${C.bold}OPTIONS${C.reset}
   --pair=id1,id2        Clone IDs or aliases (required)
                         aliases: 1~5 or 지민/태현/서연/민재/하린
   --scenario=<id>       Scenario ID (default: online-first-match)
-                        Available: ${DEFAULT_SCENARIOS.map((s) => s.id).join(', ')}
+                        Available: ${CONVERSATION_MOODS.map((s: { id: string }) => s.id).join(', ')}
   --mood-seed=<str>     Deterministic mood seed override
   --turns=N             Max turns (default: ${INTERACTION_DEFAULTS.MAX_TURNS})
   --help                Show this help
@@ -301,10 +301,10 @@ async function main(): Promise<void> {
   }
 
   // Validate scenario
-  const scenario = DEFAULT_SCENARIOS.find((s) => s.id === args.scenario)
+  const scenario = CONVERSATION_MOODS.find((s: { id: string }) => s.id === args.scenario)
   if (!scenario) {
     console.error(
-      `${C.red}Error: unknown scenario "${args.scenario}". Available: ${DEFAULT_SCENARIOS.map((s) => s.id).join(', ')}${C.reset}`
+      `${C.red}Error: unknown scenario "${args.scenario}". Available: ${CONVERSATION_MOODS.map((s: { id: string }) => s.id).join(', ')}${C.reset}`
     )
     process.exit(1)
   }
