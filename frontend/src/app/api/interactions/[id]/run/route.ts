@@ -3,9 +3,11 @@ import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { runInteraction } from '@/lib/interaction/engine'
 import { prepareClonePrompts } from '@/lib/interaction/orchestrate'
-import { DEFAULT_SCENARIOS } from '@/lib/config/interaction'
+import { DEFAULT_SCENARIOS, FEATURE_FLAGS } from '@/lib/config/interaction'
+import { extractRelationshipMemories } from '@/lib/relationship/service'
 import { errors, AppError } from '@/lib/errors'
 import type { Clone, CloneMemory } from '@/types/persona'
+import type { InteractionEvent } from '@/types/interaction'
 
 function toErrorResponse(err: unknown) {
   if (err instanceof AppError) {
@@ -145,6 +147,29 @@ export async function POST(
         },
       })
       .eq('id', id)
+
+    // 관계 기억 자동 추출 (feature flag + completed 일 때만)
+    if (FEATURE_FLAGS.ENABLE_RELATIONSHIP_MEMORY && result.status === 'completed') {
+      const { data: events } = await admin
+        .from('interaction_events')
+        .select('*')
+        .eq('interaction_id', id)
+        .order('turn_number', { ascending: true })
+
+      if (events && events.length > 0) {
+        // fire-and-forget: 실패해도 응답에 영향 없음
+        extractRelationshipMemories(
+          events as InteractionEvent[],
+          participants.map((p) => ({
+            id: p.id,
+            name: p.name,
+            persona_json: p.persona_json,
+          })),
+        ).catch((err) => {
+          console.error('[relationship] extraction failed (non-blocking):', err)
+        })
+      }
+    }
 
     return NextResponse.json({ ok: true, status: result.status })
   } catch (err) {
