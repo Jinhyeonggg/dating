@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Card } from '@/components/ui/card'
@@ -27,6 +27,16 @@ export function MemoryTabs({ cloneId, isOwner, memories, relationships }: Memory
   const router = useRouter()
   const [tab, setTab] = useState<Tab>('memories')
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [expandedRelIds, setExpandedRelIds] = useState<Set<string>>(new Set())
+
+  const toggleExpand = useCallback((relId: string) => {
+    setExpandedRelIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(relId)) next.delete(relId)
+      else next.add(relId)
+      return next
+    })
+  }, [])
 
   async function handleDeleteRelationship(relId: string, targetName: string) {
     if (!confirm(`"${targetName}"에 대한 대화 기억을 삭제할까요?`)) return
@@ -150,36 +160,46 @@ export function MemoryTabs({ cloneId, isOwner, memories, relationships }: Memory
                     </button>
                   </div>
                   <p className="mb-3 text-sm text-foreground/80">{rel.summary}</p>
-                  {!isPending && rel.memories.length > 0 && (
-                    <ul className="space-y-1.5">
-                      {rel.memories.slice(-10).reverse().map((m, i) => (
-                        <li key={i} className="flex items-start gap-1.5 text-xs">
-                          <Badge variant="secondary" className="mt-0.5 shrink-0 text-[9px]">
-                            {m.topic}
-                          </Badge>
-                          <span className="flex-1 text-muted-foreground">
-                            {m.detail}
-                          </span>
-                          <span className="shrink-0 text-[10px] text-muted-foreground/50">
-                            {m.occurred_at}
-                          </span>
-                          {m.interaction_id && (
-                            <Link
-                              href={`/interactions/${m.interaction_id}`}
-                              className="shrink-0 text-[10px] text-blue-500 hover:underline"
+                  {!isPending && rel.memories.length > 0 && (() => {
+                    const sorted = [...rel.memories].reverse()
+                    const isExpanded = expandedRelIds.has(rel.id)
+                    const visible = isExpanded ? sorted : sorted.slice(0, 5)
+                    const hiddenCount = sorted.length - 5
+
+                    return (
+                      <ul className="space-y-1.5">
+                        {visible.map((m, i) => (
+                          <li key={i} className="flex items-start gap-1.5 text-xs">
+                            <Badge variant="secondary" className="mt-0.5 shrink-0 text-[9px]">
+                              {m.topic}
+                            </Badge>
+                            <span className="flex-1 text-muted-foreground">
+                              {m.detail}
+                            </span>
+                            {m.interaction_id && (
+                              <Link
+                                href={`/interactions/${m.interaction_id}`}
+                                className="shrink-0 text-[10px] text-blue-500 hover:underline"
+                              >
+                                보기
+                              </Link>
+                            )}
+                          </li>
+                        ))}
+                        {hiddenCount > 0 && (
+                          <li>
+                            <button
+                              type="button"
+                              onClick={() => toggleExpand(rel.id)}
+                              className="text-[10px] text-blue-500 hover:underline"
                             >
-                              보기
-                            </Link>
-                          )}
-                        </li>
-                      ))}
-                      {rel.memories.length > 10 && (
-                        <li className="text-[10px] text-muted-foreground">
-                          +{rel.memories.length - 10}개 더...
-                        </li>
-                      )}
-                    </ul>
-                  )}
+                              {isExpanded ? '접기' : `+${hiddenCount}개 더 보기`}
+                            </button>
+                          </li>
+                        )}
+                      </ul>
+                    )
+                  })()}
                 </Card>
                 )
               })}
