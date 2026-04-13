@@ -117,6 +117,7 @@ export async function POST(
         setting: interaction.setting,
         maxTurns: interaction.max_turns,
         prebuiltPrompts,
+        startedAt: Date.now(),
       })
     } catch (engineErr) {
       // 엔진 자체가 throw한 경우에도 status를 failed로 업데이트

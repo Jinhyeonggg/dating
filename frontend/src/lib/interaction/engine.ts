@@ -22,7 +22,12 @@ export interface RunInteractionInput {
   setting: string | null
   maxTurns: number
   prebuiltPrompts?: Map<string, string>
+  /** 엔진 시작 시각. 이 시각 기준으로 TIMEOUT_MS 초과 시 자동 종료 */
+  startedAt?: number
 }
+
+// Vercel 300초 타임아웃 전에 여유를 두고 종료 (270초)
+const ENGINE_TIMEOUT_MS = 270_000
 
 export interface RunInteractionResult {
   status: 'completed' | 'failed'
@@ -101,8 +106,15 @@ export async function runInteraction(
     .order('turn_number', { ascending: true })
   if (existing) events.push(...(existing as InteractionEvent[]))
 
+  const engineStart = input.startedAt ?? Date.now()
+
   try {
     for (let turn = events.length; turn < input.maxTurns; turn++) {
+      // 타임아웃 체크: Vercel 300초 전에 안전하게 종료
+      if (Date.now() - engineStart > ENGINE_TIMEOUT_MS) {
+        return { status: 'completed', turnsCompleted: events.length }
+      }
+
       const speaker = pickNextSpeaker(events, input.participants)
       const listener = input.participants.find((c) => c.id !== speaker.id)!
 
