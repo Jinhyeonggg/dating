@@ -5,8 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { InteractionPairPicker } from '@/components/interaction/InteractionPairPicker'
-import { ScenarioPicker } from '@/components/interaction/ScenarioPicker'
-import { DEFAULT_SCENARIOS } from '@/lib/config/interaction'
+import { MoodPicker } from '@/components/interaction/MoodPicker'
+import { CONVERSATION_MOODS } from '@/lib/config/interaction'
 import type { Clone } from '@/types/persona'
 
 export default function NewInteractionPage() {
@@ -31,7 +31,7 @@ function NewInteractionContent() {
   const [community, setCommunity] = useState<Clone[]>([])
   const [npcs, setNpcs] = useState<Clone[]>([])
   const [pair, setPair] = useState<[string | null, string | null]>([null, null])
-  const [scenarioId, setScenarioId] = useState<string>(DEFAULT_SCENARIOS[0].id)
+  const [moodId, setMoodId] = useState<string>(CONVERSATION_MOODS[0].id)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -74,7 +74,7 @@ function NewInteractionContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           participantCloneIds: pair,
-          scenarioId,
+          moodId,
         }),
       })
       const data = await res.json()
@@ -104,7 +104,7 @@ function NewInteractionContent() {
       <header className="mb-6">
         <h1 className="text-2xl font-semibold">새 Interaction</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          두 Clone을 선택하고 시나리오를 고르면 대화가 시작됩니다.
+          두 Clone을 선택하고 대화 분위기를 고르면 대화가 시작됩니다.
         </p>
       </header>
 
@@ -121,8 +121,8 @@ function NewInteractionContent() {
         </Card>
 
         <Card className="p-4">
-          <h2 className="mb-3 text-sm font-semibold">시나리오</h2>
-          <ScenarioPicker value={scenarioId} onChange={setScenarioId} />
+          <h2 className="mb-3 text-sm font-semibold">대화 분위기</h2>
+          <MoodPicker value={moodId} onChange={setMoodId} />
         </Card>
 
         {error && <p className="text-sm text-destructive">{error}</p>}
