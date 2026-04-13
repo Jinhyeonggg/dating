@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { after, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { runInteraction } from '@/lib/interaction/engine'
@@ -105,31 +105,6 @@ export async function POST(
       .update({ status: 'running', started_at: new Date().toISOString() })
       .eq('id', id)
 
-    // 양방향 placeholder 관계 기억 생성 (대화 진행 중 상태)
-    if (FEATURE_FLAGS.ENABLE_RELATIONSHIP_MEMORY && participants.length === 2) {
-      const [pA, pB] = participants
-      for (const [selfId, targetId, targetName] of [
-        [pA.id, pB.id, pB.name],
-        [pB.id, pA.id, pA.name],
-      ] as const) {
-        const { data: existing } = await admin
-          .from('clone_relationships')
-          .select('id')
-          .eq('clone_id', selfId)
-          .eq('target_clone_id', targetId)
-          .maybeSingle()
-        if (!existing) {
-          await admin.from('clone_relationships').insert({
-            clone_id: selfId,
-            target_clone_id: targetId,
-            interaction_count: 0,
-            summary: `${targetName}와(과) 대화가 진행 중이에요...`,
-            memories: [],
-          })
-        }
-      }
-    }
-
     let result: Awaited<ReturnType<typeof runInteraction>>
     try {
       result = await runInteraction({
@@ -173,29 +148,33 @@ export async function POST(
       })
       .eq('id', id)
 
-    // 관계 기억 자동 추출 (feature flag + completed 일 때만)
+    // 관계 기억 자동 추출 — after()로 response 반환 후 실행
     if (FEATURE_FLAGS.ENABLE_RELATIONSHIP_MEMORY && result.status === 'completed') {
-      const { data: events } = await admin
-        .from('interaction_events')
-        .select('*')
-        .eq('interaction_id', id)
-        .order('turn_number', { ascending: true })
-
-      if (events && events.length > 0) {
+      const participantData = participants.map((p) => ({
+        id: p.id,
+        name: p.name,
+        persona_json: p.persona_json,
+      }))
+      after(async () => {
         try {
-          await extractRelationshipMemories(
-            events as InteractionEvent[],
-            participants.map((p) => ({
-              id: p.id,
-              name: p.name,
-              persona_json: p.persona_json,
-            })),
-            id,
-          )
+          const bgAdmin = createServiceClient()
+          const { data: events } = await bgAdmin
+            .from('interaction_events')
+            .select('*')
+            .eq('interaction_id', id)
+            .order('turn_number', { ascending: true })
+
+          if (events && events.length > 0) {
+            await extractRelationshipMemories(
+              events as InteractionEvent[],
+              participantData,
+              id,
+            )
+          }
         } catch (err) {
-          console.error('[relationship] extraction failed:', err)
+          console.error('[relationship] after() extraction failed:', err)
         }
-      }
+      })
     }
 
     return NextResponse.json({ ok: true, status: result.status })
