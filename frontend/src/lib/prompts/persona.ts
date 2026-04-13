@@ -1,5 +1,6 @@
 import type { Persona, CloneMemory } from '@/types/persona'
 import type { InferredTraits } from '@/types/onboarding'
+import type { CloneRelationship } from '@/types/relationship'
 import { BEHAVIOR_INSTRUCTIONS } from './behavior'
 import { TEXTURE_RULES } from './texture'
 import { INTERACTION_DEFAULTS } from '@/lib/config/interaction'
@@ -68,6 +69,30 @@ export function renderInferredTraits(traits: InferredTraits | null): string {
   return lines.join('\n')
 }
 
+export function renderRelationshipMemory(
+  relationship: CloneRelationship | null,
+  partnerName: string,
+  limit: number = INTERACTION_DEFAULTS.RELATIONSHIP_MEMORY_INJECTION_LIMIT,
+): string {
+  if (!relationship) return ''
+
+  const lines = [
+    `[이전 대화 기억 — 상대: ${partnerName}]`,
+    `대화 ${relationship.interaction_count}회. ${relationship.summary}`,
+  ]
+
+  const sorted = [...relationship.memories].sort((a, b) =>
+    b.occurred_at.localeCompare(a.occurred_at)
+  )
+  const picked = sorted.slice(0, limit)
+
+  for (const m of picked) {
+    lines.push(`- [${m.topic}] ${m.detail} (${m.occurred_at})`)
+  }
+
+  return lines.join('\n')
+}
+
 export function buildSystemPrompt(
   persona: Persona,
   memories: CloneMemory[] = []
@@ -84,6 +109,7 @@ export interface EnhancedPromptInput {
   persona: Persona
   memories?: CloneMemory[]
   inferredTraits?: InferredTraits | null
+  relationshipMemory?: { relationship: CloneRelationship; partnerName: string } | null
   textureRules?: string
   styleCards?: StyleCard[]
   mood?: MoodState
@@ -115,7 +141,7 @@ function renderStyleCards(cards: StyleCard[]): string {
 }
 
 export function buildEnhancedSystemPrompt(input: EnhancedPromptInput): string {
-  const { persona, memories, inferredTraits, textureRules, styleCards, mood, worldSnippet } = input
+  const { persona, memories, inferredTraits, relationshipMemory, textureRules, styleCards, mood, worldSnippet } = input
 
   const parts: string[] = []
 
@@ -131,25 +157,34 @@ export function buildEnhancedSystemPrompt(input: EnhancedPromptInput): string {
     if (rendered) parts.push(rendered)
   }
 
-  // 4. Memories
+  // 4. Relationship memory
+  if (relationshipMemory) {
+    const rendered = renderRelationshipMemory(
+      relationshipMemory.relationship,
+      relationshipMemory.partnerName,
+    )
+    if (rendered) parts.push(rendered)
+  }
+
+  // 5. Memories
   if (memories && memories.length > 0) {
     parts.push(renderRecentMemories(memories))
   }
 
-  // 5. Mood hint (short, 1-2 lines)
+  // 6. Mood hint (short, 1-2 lines)
   if (mood) parts.push(renderMoodHint(mood))
 
-  // 6. Style cards (few-shot examples)
+  // 7. Style cards (few-shot examples)
   if (styleCards && styleCards.length > 0) {
     parts.push(renderStyleCards(styleCards))
   }
 
-  // 7. World context (optional)
+  // 8. World context (optional)
   if (worldSnippet?.promptText) {
     parts.push(worldSnippet.promptText)
   }
 
-  // 8. Behavior instructions (always last)
+  // 9. Behavior instructions (always last)
   parts.push(BEHAVIOR_INSTRUCTIONS)
 
   return parts.join('\n\n')

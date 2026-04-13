@@ -5,8 +5,9 @@ import { scoreAndSelectItems } from '@/lib/world/collect'
 import { buildWorldSnippet } from '@/lib/world/inject'
 import { buildEnhancedSystemPrompt } from '@/lib/prompts/persona'
 import { TEXTURE_RULES } from '@/lib/prompts/texture'
-import { REALISM_DEFAULTS } from '@/lib/config/interaction'
+import { REALISM_DEFAULTS, FEATURE_FLAGS } from '@/lib/config/interaction'
 import { createServiceClient } from '@/lib/supabase/service'
+import type { CloneRelationship } from '@/types/relationship'
 import type { Clone, CloneMemory } from '@/types/persona'
 import type { WorldSnippet as WorldSnippetType } from '@/lib/world/types'
 import type { MoodState } from '@/lib/mood/types'
@@ -61,6 +62,20 @@ export async function prepareClonePrompts(
   const allStyleCards = getAllStyleCards()
   const result = new Map<string, ClonePromptContext>()
 
+  // 0. Load relationship memories (if feature enabled)
+  const relationshipMap = new Map<string, CloneRelationship>()
+  if (FEATURE_FLAGS.ENABLE_RELATIONSHIP_MEMORY && participants.length === 2) {
+    const adminRel = createServiceClient()
+    const [a, b] = participants
+    const { data: relRows } = await adminRel
+      .from('clone_relationships')
+      .select('*')
+      .or(`and(clone_id.eq.${a.id},target_clone_id.eq.${b.id}),and(clone_id.eq.${b.id},target_clone_id.eq.${a.id})`)
+    for (const row of (relRows ?? []) as CloneRelationship[]) {
+      relationshipMap.set(`${row.clone_id}→${row.target_clone_id}`, row)
+    }
+  }
+
   for (const clone of participants) {
     const memories = memoriesByClone.get(clone.id) ?? []
     const persona = clone.persona_json
@@ -86,10 +101,17 @@ export async function prepareClonePrompts(
     })
 
     // 5. Build enhanced system prompt
+    const otherClone = participants.find((p) => p.id !== clone.id)
+    const relKey = otherClone ? `${clone.id}→${otherClone.id}` : null
+    const relationship = relKey ? relationshipMap.get(relKey) ?? null : null
+
     const systemPrompt = buildEnhancedSystemPrompt({
       persona,
       memories,
       inferredTraits: clone.inferred_traits ?? null,
+      relationshipMemory: relationship && otherClone
+        ? { relationship, partnerName: otherClone.name }
+        : null,
       textureRules: TEXTURE_RULES,
       styleCards,
       mood,
