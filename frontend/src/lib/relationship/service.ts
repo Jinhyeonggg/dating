@@ -1,0 +1,181 @@
+import { callClaude } from '@/lib/claude'
+import { CLAUDE_MODELS, CLAUDE_LIMITS } from '@/lib/config/claude'
+import {
+  buildRelationshipExtractionPrompt,
+  buildResummarizationPrompt,
+  type RelationshipExtractionInput,
+} from '@/lib/prompts/relationship'
+import { parseRelationshipExtraction } from './extract'
+import { createServiceClient } from '@/lib/supabase/service'
+import { AppError } from '@/lib/errors'
+import type { Persona } from '@/types/persona'
+import type { CloneRelationship, RelationshipMemoryItem } from '@/types/relationship'
+import type { InteractionEvent } from '@/types/interaction'
+
+function buildConversationLog(events: InteractionEvent[], cloneNames: Map<string, string>): string {
+  return events
+    .map((e) => `${cloneNames.get(e.speaker_clone_id) ?? '?'}: ${e.content}`)
+    .join('\n')
+}
+
+function parseJsonResponse(response: string): unknown {
+  const jsonStart = response.indexOf('{')
+  const jsonEnd = response.lastIndexOf('}')
+  if (jsonStart < 0 || jsonEnd < 0) {
+    throw new Error('JSON 객체를 찾을 수 없음')
+  }
+  return JSON.parse(response.slice(jsonStart, jsonEnd + 1))
+}
+
+async function extractForOneClone(
+  selfCloneId: string,
+  selfName: string,
+  selfPersona: Persona,
+  targetCloneId: string,
+  targetName: string,
+  conversationLog: string,
+  existing: CloneRelationship | null,
+): Promise<void> {
+  const input: RelationshipExtractionInput = {
+    conversationLog,
+    selfName,
+    selfPersona,
+    partnerName: targetName,
+    previousSummary: existing?.summary ?? null,
+    previousMemories: existing?.memories ?? [],
+  }
+
+  const prompt = buildRelationshipExtractionPrompt(input)
+
+  const response = await callClaude({
+    model: CLAUDE_MODELS.RELATIONSHIP,
+    system: '당신은 대화 참여자의 내면을 분석하는 심리학자입니다. JSON으로만 응답하세요.',
+    messages: [{ role: 'user', content: prompt }],
+    maxTokens: CLAUDE_LIMITS.MAX_OUTPUT_TOKENS_RELATIONSHIP,
+    temperature: 0.3,
+  })
+
+  let parsed: unknown
+  try {
+    parsed = parseJsonResponse(response)
+  } catch (err) {
+    throw new AppError(
+      'LLM_ERROR',
+      `관계 기억 추출 파싱 실패: ${(err as Error).message}`,
+      502,
+      { raw: response }
+    )
+  }
+
+  const extracted = parseRelationshipExtraction(parsed)
+
+  const admin = createServiceClient()
+
+  if (existing) {
+    // 기존 row: summary 재요약 + memories append
+    let finalSummary = extracted.summary
+
+    if (existing.summary && existing.summary !== extracted.summary) {
+      const newCount = existing.interaction_count + 1
+      const resummarizeResponse = await callClaude({
+        model: CLAUDE_MODELS.RELATIONSHIP,
+        system: 'JSON으로만 응답하세요.',
+        messages: [{ role: 'user', content: buildResummarizationPrompt(
+          existing.summary,
+          extracted.summary,
+          newCount,
+        )}],
+        maxTokens: 256,
+        temperature: 0.2,
+      })
+      try {
+        const resumParsed = parseJsonResponse(resummarizeResponse) as { summary?: string }
+        if (typeof resumParsed.summary === 'string' && resumParsed.summary.length > 0) {
+          finalSummary = resumParsed.summary
+        }
+      } catch {
+        // 재요약 실패 시 새 summary 그대로 사용
+      }
+    }
+
+    const mergedMemories: RelationshipMemoryItem[] = [
+      ...existing.memories,
+      ...extracted.new_memories,
+    ]
+
+    const { error } = await admin
+      .from('clone_relationships')
+      .update({
+        summary: finalSummary,
+        memories: mergedMemories,
+        interaction_count: existing.interaction_count + 1,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', existing.id)
+
+    if (error) {
+      console.error(`[relationship] update failed for ${selfCloneId} → ${targetCloneId}:`, error.message)
+    }
+  } else {
+    // 신규 row
+    const { error } = await admin
+      .from('clone_relationships')
+      .insert({
+        clone_id: selfCloneId,
+        target_clone_id: targetCloneId,
+        interaction_count: 1,
+        summary: extracted.summary,
+        memories: extracted.new_memories,
+      })
+
+    if (error) {
+      console.error(`[relationship] insert failed for ${selfCloneId} → ${targetCloneId}:`, error.message)
+    }
+  }
+}
+
+/**
+ * Interaction 종료 후 양방향 관계 기억 추출.
+ * 두 Clone 각각의 관점에서 병렬로 추출한다.
+ */
+export async function extractRelationshipMemories(
+  events: InteractionEvent[],
+  participants: { id: string; name: string; persona_json: Persona }[],
+): Promise<void> {
+  if (participants.length !== 2 || events.length === 0) return
+
+  const [cloneA, cloneB] = participants
+  const cloneNames = new Map<string, string>([
+    [cloneA.id, cloneA.name],
+    [cloneB.id, cloneB.name],
+  ])
+  const conversationLog = buildConversationLog(events, cloneNames)
+
+  // 기존 관계 조회
+  const admin = createServiceClient()
+  const { data: existingRows } = await admin
+    .from('clone_relationships')
+    .select('*')
+    .or(`and(clone_id.eq.${cloneA.id},target_clone_id.eq.${cloneB.id}),and(clone_id.eq.${cloneB.id},target_clone_id.eq.${cloneA.id})`)
+
+  const existingMap = new Map<string, CloneRelationship>()
+  for (const row of (existingRows ?? []) as CloneRelationship[]) {
+    existingMap.set(`${row.clone_id}→${row.target_clone_id}`, row)
+  }
+
+  // 양방향 병렬 추출
+  await Promise.allSettled([
+    extractForOneClone(
+      cloneA.id, cloneA.name, cloneA.persona_json,
+      cloneB.id, cloneB.name,
+      conversationLog,
+      existingMap.get(`${cloneA.id}→${cloneB.id}`) ?? null,
+    ),
+    extractForOneClone(
+      cloneB.id, cloneB.name, cloneB.persona_json,
+      cloneA.id, cloneA.name,
+      conversationLog,
+      existingMap.get(`${cloneB.id}→${cloneA.id}`) ?? null,
+    ),
+  ])
+}
