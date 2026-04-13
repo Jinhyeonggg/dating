@@ -9,7 +9,7 @@
 
 | 항목 | 상태 |
 |---|---|
-| 현재 단계 | **Phase 2-A ✅ + Phase 2-B ✅ (관계 기억) + 롤 매핑 수정 ✅** |
+| 현재 단계 | **Phase 2-A ✅ + Phase 2-B ✅ (관계 기억) + 롤 매핑 수정 ✅ + Admin Runtime Config ✅** |
 | 프로덕션 배포 | ✅ `https://frontend-eta-neon-97.vercel.app` |
 | 마지막 태그 | `phase1-complete` |
 | 다음 단계 | 튜닝 + super_meme NPC + 전략 방향 결정 |
@@ -67,8 +67,10 @@
 - `/admin/world` — world context 수동 관리
 - `/admin/interactions` — 전체 interaction 조회 + 삭제 + "Stuck 정리" 버튼 (1시간+ running → failed 전환)
 - `/admin/clones` — 전체 clone 조회 + 삭제 (관련 interaction 일괄 삭제)
+- `/admin/config` — 플랫폼 설정 (Interaction 모드 토글, 관계 기억 on/off)
 - `GET|POST /api/admin/interactions` / `DELETE /api/admin/interactions/[id]`
 - `GET /api/admin/clones` / `DELETE /api/admin/clones/[id]`
+- `GET|PATCH /api/admin/config` — 런타임 설정 조회/변경
 - (ADMIN_USER_IDS env var 기반 접근 제어)
 
 ### 주요 모듈
@@ -89,6 +91,7 @@
 - `admin/guard.ts` — env var 기반 admin 체크
 - `clone/publicFields.ts` — 공개 필드 상수 + persona 필터 함수
 - `config/{claude,interaction,analysis}.ts` — 상수 (모델명, 턴 수, 시나리오, 카테고리, realism defaults, `CLAUDE_MODELS.ONBOARDING`)
+- `config/runtime.ts` — 런타임 설정 조회 (`getRuntimeConfig`), 프리셋 매핑
 - `constants/{personaFields,onboardingQuestions}.ts` — `PERSONA_SECTIONS` + 온보딩 질문 세트 (시나리오 3 + 선택지 4)
 - `validation/*.ts` — Zod 스키마 6종 (onboarding 추가)
 - `errors.ts` — `AppError` + `errors` 팩토리
@@ -107,7 +110,7 @@
 
 테이블: `profiles`, `clones`, `clone_memories`, `interactions`, `interaction_participants`, `interaction_events`, `analyses`, `world_context`
 
-**마이그레이션 18개**:
+**마이그레이션 19개**:
 1. `20260411000001_init_profiles.sql`
 2. `20260411000002_init_clones.sql`
 3. `20260411000003_init_clone_memories.sql`
@@ -126,6 +129,7 @@
 16. `20260412000007_fix_interactions_select_rls.sql` — `interactions` 테이블 SELECT 정책 추가 (참여자 포함)
 17. `20260412000008_fix_clones_interaction_participant_rls.sql` — 비공개 clone도 interaction 상대이면 조회 가능
 18. `20260412000009_fix_clones_rls_recursion.sql` — `clone_is_my_interaction_partner` SECURITY DEFINER로 재귀 방지
+19. `20260413000003_platform_config.sql` — platform_config 테이블 + 초기 데이터
 
 **RLS 헬퍼 함수 (SECURITY DEFINER)**:
 - `interaction_is_mine(uuid)` — 내가 생성했거나 내 clone이 참여한 interaction인지 판정
@@ -183,6 +187,7 @@
 | World context 수동 큐레이션 | v1은 `/admin/world`에서 수동. 미래에 뉴스 API 자동 수집으로 전환 예정. collection vs injection 분리 |
 | Admin은 env var 기반 | `ADMIN_USER_IDS` env var. DB 컬럼 아님. 간단함 우선 |
 | Admin은 service client로 모든 데이터 접근 | interaction viewer에서 admin이면 RLS 우회 |
+| 런타임 설정은 platform_config 테이블 | 배포 없이 admin 토글 전환. 코드 상수는 fallback |
 | Clone 기본 공개 + 필드별 프라이버시 | `is_public` default true, `public_fields` 배열로 필드별 공개/비공개 제어. Interaction에서는 전체 persona 사용, 열람 시만 필터링 |
 | Persona 필드 필터링은 API 레이어 | RLS는 row 단위만 가능. column masking은 서버 코드(`filterPersonaByPublicFields`)에서 수행 |
 | 인사는 1턴 제한 | behavior 규칙으로 강제. 2턴째부터 본론(프로필 기반 질문/관심사)으로 |
@@ -272,11 +277,11 @@ AppNav → TipBanner → MemoryPromptBanner → {children}
   - fallback API로 실패 시 재시도
 - **중기**: Anthropic Tier 업그레이드, 큐잉 시스템
 
-### 7. 임시 설정 — 토큰 절약 모드 (TODO: 복원)
-- `CLAUDE_MODELS.INTERACTION`: `claude-sonnet-4-6` → **`claude-haiku-4-5-20251001`** (테스트용)
-- `INTERACTION_DEFAULTS.MAX_TURNS`: 20 → **15**
-- `CLAUDE_LIMITS.MAX_OUTPUT_TOKENS_INTERACTION`: 512 → **200** (Haiku 토큰 꽉 채움 방지)
-- **복원 시**: claude.ts에서 INTERACTION 모델을 sonnet으로, interaction.ts에서 MAX_TURNS 20으로, MAX_OUTPUT_TOKENS 512로
+### 7. 임시 설정 — ✅ Admin 런타임 토글로 해결
+- `/admin/config` 페이지에서 "절약/정상" 프리셋 토글로 전환
+- 절약: Haiku + 15턴 + 200토큰, 정상: Sonnet + 20턴 + 512토큰
+- 관계 기억 on/off 독립 토글
+- `platform_config` 테이블 (마이그레이션 19번)
 
 ### 8. AI 역할 혼동 (Haiku 한계) — 완화됨
 - **증상**: AI가 자기 프로필 정보를 상대방의 것으로 착각하고 질문
@@ -375,7 +380,6 @@ AppNav → TipBanner → MemoryPromptBanner → {children}
 ### 다음 작업 (우선순위)
 - **super_meme NPC 클론** — 밈 문화 특화 NPC
 - **전략 방향 결정** — 데이팅 매칭 vs 메타버스 (분석 문서 작성 완료)
-- **임시 설정 복원** — Sonnet 모델, 20턴, 토큰 512로 복원
 - **메모리 compaction** — 메모리/관계 기억을 압축해서 system prompt에 더 많이 주입
 - Interaction 후 자동 에피소드 메모리 추출
 
