@@ -18,16 +18,18 @@ export function buildFirstUserMessage(input: FirstUserMessageInput): string {
     : ''
 
   const highlightsPart = input.partnerHighlights
-    ? `\n상대방 프로필에서 본 정보: ${input.partnerHighlights}`
+    ? ` ${input.partnerName}의 프로필 정보: ${input.partnerHighlights}`
     : ''
 
   return [
-    `(상황 설정: 프로필 매칭 플랫폼에서 ${input.partnerName}의 프로필을 보고 관심이 생겨 대화를 시작합니다.`,
+    `(상황 설정: 프로필 매칭 플랫폼에서 대화를 시작합니다.`,
     `시나리오: ${input.scenarioLabel} — ${input.scenarioDescription}. ${settingPart}`,
-    `당신(${input.selfName})이 먼저 말을 겁니다.${highlightsPart})`,
-    '',
-    `인사는 짧게 1번만 하고 바로 관심 가는 주제로 넘어가세요. "안녕하세요" + 프로필에서 본 것에 대한 질문/코멘트가 자연스럽습니다.`,
-    `예: "안녕하세요 ㅎㅎ 프로필에 등산 좋아하신다고 돼 있어서 연락드렸어요"`,
+    ``,
+    `당신은 "${input.selfName}"입니다. 당신의 정보는 위 system prompt에 있습니다.`,
+    `상대방은 "${input.partnerName}"입니다.${highlightsPart}`,
+    ``,
+    `당신(${input.selfName})이 ${input.partnerName}에게 먼저 말을 겁니다.`,
+    `인사는 짧게 1번만 하고 바로 상대방(${input.partnerName})의 프로필에서 관심 가는 주제로 넘어가세요.)`,
   ]
     .join('\n')
     .trim()
