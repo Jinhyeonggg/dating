@@ -157,12 +157,14 @@ export default async function CloneDetailPage({ params }: PageProps) {
         </Card>
       )}
 
-      <MemoryTabs
-        cloneId={clone.id}
-        isOwner={isOwner}
-        memories={memories}
-        relationships={relationships}
-      />
+      {isOwner && (
+        <MemoryTabs
+          cloneId={clone.id}
+          isOwner={isOwner}
+          memories={memories}
+          relationships={relationships}
+        />
+      )}
     </main>
   )
 }
