@@ -173,39 +173,23 @@ export async function extractRelationshipMemories(
     existingMap.set(`${row.clone_id}→${row.target_clone_id}`, row)
   }
 
-  // 양방향 병렬 추출 — 실패 시 placeholder 정리
+  // 양방향 순차 추출 (병렬 시 rate limit 충돌 방지)
   const pairs: [string, string, Persona, string, string][] = [
     [cloneA.id, cloneA.name, cloneA.persona_json, cloneB.id, cloneB.name],
     [cloneB.id, cloneB.name, cloneB.persona_json, cloneA.id, cloneA.name],
   ]
 
-  const results = await Promise.allSettled(
-    pairs.map(([selfId, selfName, selfPersona, targetId, targetName]) =>
-      extractForOneClone(
+  for (const [selfId, selfName, selfPersona, targetId, targetName] of pairs) {
+    try {
+      await extractForOneClone(
         selfId, selfName, selfPersona,
         targetId, targetName,
         conversationLog,
         existingMap.get(`${selfId}→${targetId}`) ?? null,
         interactionId,
       )
-    )
-  )
-
-  // 실패한 추출의 placeholder 정리
-  for (let i = 0; i < results.length; i++) {
-    if (results[i].status === 'rejected') {
-      const [selfId, , , targetId, targetName] = pairs[i]
-      const existing = existingMap.get(`${selfId}→${targetId}`)
-      if (existing && existing.interaction_count === 0) {
-        // placeholder만 삭제 (이미 기억이 있는 row는 건드리지 않음)
-        await admin
-          .from('clone_relationships')
-          .delete()
-          .eq('id', existing.id)
-        console.error(`[relationship] extraction failed for ${selfId}→${targetId}, placeholder deleted. Reason:`, (results[i] as PromiseRejectedResult).reason)
-      } else {
-        console.error(`[relationship] extraction failed for ${selfId}→${targetId} (non-placeholder, kept). Reason:`, (results[i] as PromiseRejectedResult).reason)
-      }
+    } catch (err) {
+      console.error(`[relationship] extraction failed for ${selfId}→${targetId}:`, err)
     }
   }
 }
