@@ -14,7 +14,7 @@ interface AdminClone {
   is_active: boolean
   created_at: string
   updated_at: string
-  profiles: { email: string } | null
+  owner_email: string | null
 }
 
 export default function AdminClonesPage() {
@@ -105,7 +105,7 @@ export default function AdminClonesPage() {
                   <td className="py-3 pr-4 text-gray-500">
                     {clone.is_npc
                       ? '—'
-                      : clone.profiles?.email ?? clone.user_id?.slice(0, 8) ?? '?'}
+                      : clone.owner_email ?? clone.user_id?.slice(0, 8) ?? '?'}
                   </td>
                   <td className="py-3 pr-4">
                     {clone.is_npc ? (

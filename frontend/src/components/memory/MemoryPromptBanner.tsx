@@ -100,24 +100,30 @@ export function MemoryPromptBanner() {
   if (!show) return null
 
   return (
-    <div className="border-b bg-muted/30">
-      <div className="mx-auto max-w-5xl px-4 py-3">
+    <div className="border-b border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30">
+      <div className="mx-auto max-w-5xl px-4 py-4">
         {!expanded ? (
           <div className="flex items-center justify-between gap-4">
             <button
               type="button"
               onClick={() => setExpanded(true)}
-              className="text-left text-sm text-foreground hover:underline"
+              className="flex items-center gap-3 text-left transition-opacity hover:opacity-80"
             >
-              <span className="mr-2">💭</span>
-              다시 오셨군요! 그동안 어떻게 지내셨어요? 클론에게 근황을 알려주세요
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-lg dark:bg-blue-900/50">
+                ✏️
+              </span>
+              <div>
+                <p className="text-sm font-medium text-foreground">다시 오셨군요!</p>
+                <p className="text-xs text-muted-foreground">그동안 어떻게 지내셨어요? 클론에게 근황을 알려주세요</p>
+              </div>
             </button>
             <button
               type="button"
               onClick={dismiss}
-              className="shrink-0 text-xs text-muted-foreground hover:text-foreground"
+              className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
+              aria-label="닫기"
             >
-              닫기
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
             </button>
           </div>
         ) : success ? (
