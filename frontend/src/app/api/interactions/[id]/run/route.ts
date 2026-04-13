@@ -105,6 +105,31 @@ export async function POST(
       .update({ status: 'running', started_at: new Date().toISOString() })
       .eq('id', id)
 
+    // 양방향 placeholder 관계 기억 생성 (대화 진행 중 상태)
+    if (FEATURE_FLAGS.ENABLE_RELATIONSHIP_MEMORY && participants.length === 2) {
+      const [pA, pB] = participants
+      for (const [selfId, targetId, targetName] of [
+        [pA.id, pB.id, pB.name],
+        [pB.id, pA.id, pA.name],
+      ] as const) {
+        const { data: existing } = await admin
+          .from('clone_relationships')
+          .select('id')
+          .eq('clone_id', selfId)
+          .eq('target_clone_id', targetId)
+          .maybeSingle()
+        if (!existing) {
+          await admin.from('clone_relationships').insert({
+            clone_id: selfId,
+            target_clone_id: targetId,
+            interaction_count: 0,
+            summary: `${targetName}와(과) 대화가 진행 중이에요...`,
+            memories: [],
+          })
+        }
+      }
+    }
+
     let result: Awaited<ReturnType<typeof runInteraction>>
     try {
       result = await runInteraction({

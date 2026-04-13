@@ -99,16 +99,25 @@ export function MemoryTabs({ cloneId, isOwner, memories, relationships }: Memory
             </Card>
           ) : (
             <div className="space-y-3">
-              {relationships.map((rel) => (
-                <Card key={rel.id} className="p-4">
+              {relationships.map((rel) => {
+                const isPending = rel.interaction_count === 0
+                return (
+                <Card key={rel.id} className={`p-4 ${isPending ? 'border-dashed opacity-70' : ''}`}>
                   <div className="mb-2 flex items-center justify-between">
                     <span className="text-sm font-medium">{rel.target_name}</span>
-                    <Badge variant="outline" className="text-[10px]">
-                      대화 {rel.interaction_count}회
-                    </Badge>
+                    {isPending ? (
+                      <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                        <span className="inline-block h-3 w-3 animate-spin rounded-full border border-muted-foreground border-t-transparent" />
+                        대화 분석 중
+                      </span>
+                    ) : (
+                      <Badge variant="outline" className="text-[10px]">
+                        대화 {rel.interaction_count}회
+                      </Badge>
+                    )}
                   </div>
                   <p className="mb-3 text-sm text-foreground/80">{rel.summary}</p>
-                  {rel.memories.length > 0 && (
+                  {!isPending && rel.memories.length > 0 && (
                     <ul className="space-y-1.5">
                       {rel.memories.slice(-10).reverse().map((m, i) => (
                         <li key={i} className="flex items-start gap-1.5 text-xs">
@@ -140,7 +149,8 @@ export function MemoryTabs({ cloneId, isOwner, memories, relationships }: Memory
                     </ul>
                   )}
                 </Card>
-              ))}
+                )
+              })}
             </div>
           )}
         </>
