@@ -1,6 +1,7 @@
 export interface FirstUserMessageInput {
-  scenarioLabel: string
-  scenarioDescription: string
+  relationshipStageLabel: string
+  moodLabel: string
+  moodDescription: string
   setting: string | null
   partnerName: string
   selfName: string
@@ -9,8 +10,7 @@ export interface FirstUserMessageInput {
 
 /**
  * 첫 화자에게 전달될 "첫 user 메시지".
- * 일반 대화의 시작점 역할을 하되, 시나리오 맥락을 자연스럽게 제공.
- * 상대 Clone이 이 메시지를 보는 것이 아니라, 첫 발화자가 "이 상황에서 먼저 말을 건다"는 설정.
+ * 관계 단계 + 분위기를 분리해서 전달한다.
  */
 export function buildFirstUserMessage(input: FirstUserMessageInput): string {
   const settingPart = input.setting
@@ -23,7 +23,8 @@ export function buildFirstUserMessage(input: FirstUserMessageInput): string {
 
   return [
     `(상황 설정: 프로필 매칭 플랫폼에서 대화를 시작합니다.`,
-    `시나리오: ${input.scenarioLabel} — ${input.scenarioDescription}. ${settingPart}`,
+    `관계: ${input.relationshipStageLabel}.`,
+    `분위기: ${input.moodLabel} — ${input.moodDescription}. ${settingPart}`,
     ``,
     `당신은 "${input.selfName}"입니다. 당신의 정보는 위 system prompt에 있습니다.`,
     `상대방은 "${input.partnerName}"입니다.${highlightsPart}`,
