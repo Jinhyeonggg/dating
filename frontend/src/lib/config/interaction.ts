@@ -22,20 +22,41 @@ export const FEATURE_FLAGS = {
 
 export const END_PROMISE_MARKER = '<promise>END</promise>'
 
-export const DEFAULT_SCENARIOS = [
+export const CONVERSATION_MOODS = [
   {
-    id: 'online-first-match',
-    label: '온라인 대화 앱에서 처음 매칭됨',
-    description: '둘 다 상대방을 오늘 처음 봄',
+    id: 'casual',
+    label: '가벼운 대화',
+    description: '일상적이고 편한 분위기',
   },
   {
-    id: 'casual-chat',
-    label: '친구의 친구로 가볍게 대화',
-    description: '서로 이름 정도만 아는 사이',
+    id: 'serious',
+    label: '진지한 대화',
+    description: '가치관, 인생관을 나누는 분위기',
   },
   {
-    id: 'deep-talk',
-    label: '깊은 주제 토론',
-    description: '가치관·인생관을 나누는 분위기',
+    id: 'free',
+    label: '자유 대화',
+    description: '제한 없이 자연스럽게',
   },
 ] as const
+
+export const RELATIONSHIP_STAGES = [
+  { id: 'first-meeting', label: '처음 만나는 사이', minCount: 0, maxCount: 0 },
+  { id: 'early-acquaintance', label: '몇 번 대화해 본 사이', minCount: 1, maxCount: 2 },
+  { id: 'familiar', label: '여러 번 대화한 사이', minCount: 3, maxCount: Infinity },
+] as const
+
+export type RelationshipStageId = (typeof RELATIONSHIP_STAGES)[number]['id']
+export type ConversationMoodId = (typeof CONVERSATION_MOODS)[number]['id']
+
+/**
+ * interaction_count 기반으로 관계 단계를 결정한다. deterministic.
+ */
+export function getRelationshipStage(interactionCount: number): { id: RelationshipStageId; label: string } {
+  const stage = RELATIONSHIP_STAGES.find(
+    (s) => interactionCount >= s.minCount && interactionCount <= s.maxCount
+  )
+  return stage
+    ? { id: stage.id, label: stage.label }
+    : { id: 'first-meeting', label: '처음 만나는 사이' }
+}
