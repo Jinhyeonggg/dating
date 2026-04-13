@@ -24,6 +24,8 @@ export interface RunInteractionInput {
   prebuiltPrompts?: Map<string, string>
   /** 엔진 시작 시각. 이 시각 기준으로 TIMEOUT_MS 초과 시 자동 종료 */
   startedAt?: number
+  /** 관계 단계 라벨 ("처음 만나는 사이" 등) */
+  relationshipStageLabel?: string
   /** 런타임 설정에서 주입. 없으면 코드 상수 fallback */
   model?: string
   maxOutputTokens?: number
@@ -140,8 +142,9 @@ export async function runInteraction(
         ].filter(Boolean).join(' / ')
 
         const firstUserMessage = buildFirstUserMessage({
-          scenarioLabel: input.scenario.label,
-          scenarioDescription: input.scenario.description,
+          relationshipStageLabel: input.relationshipStageLabel ?? '처음 만나는 사이',
+          moodLabel: input.scenario.label,
+          moodDescription: input.scenario.description,
           setting: input.setting,
           partnerName: listener.name,
           selfName: speaker.name,

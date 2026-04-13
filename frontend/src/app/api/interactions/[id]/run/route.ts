@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { runInteraction } from '@/lib/interaction/engine'
 import { prepareClonePrompts } from '@/lib/interaction/orchestrate'
-import { DEFAULT_SCENARIOS } from '@/lib/config/interaction'
+import { CONVERSATION_MOODS, RELATIONSHIP_STAGES } from '@/lib/config/interaction'
 import { getRuntimeConfig } from '@/lib/config/runtime'
 import { extractRelationshipMemories } from '@/lib/relationship/service'
 import { errors, AppError } from '@/lib/errors'
@@ -89,9 +89,16 @@ export async function POST(
     }
 
     const runtimeConfig = await getRuntimeConfig()
-    const metadata = (interaction.metadata ?? {}) as { scenarioId?: string }
-    const scenarioId = metadata.scenarioId ?? DEFAULT_SCENARIOS[0].id
-    const scenario = DEFAULT_SCENARIOS.find((s) => s.id === scenarioId) ?? DEFAULT_SCENARIOS[0]
+    const metadata = (interaction.metadata ?? {}) as {
+      moodId?: string
+      relationshipStage?: string
+      scenarioId?: string // 하위호환
+    }
+    const moodId = metadata.moodId ?? metadata.scenarioId ?? CONVERSATION_MOODS[0].id
+    const mood = CONVERSATION_MOODS.find((m) => m.id === moodId) ?? CONVERSATION_MOODS[0]
+    const stageId = metadata.relationshipStage ?? 'first-meeting'
+    const stage = RELATIONSHIP_STAGES.find((s) => s.id === stageId)
+      ?? { id: 'first-meeting' as const, label: '처음 만나는 사이', minCount: 0, maxCount: 0 }
 
     // 모듈레이터 오케스트레이션: mood + style cards + world context → enhanced system prompts
     const today = new Date().toISOString().split('T')[0]
@@ -114,10 +121,11 @@ export async function POST(
         participants,
         memoriesByClone,
         scenario: {
-          id: scenario.id,
-          label: scenario.label,
-          description: scenario.description,
+          id: mood.id,
+          label: mood.label,
+          description: mood.description,
         },
+        relationshipStageLabel: stage.label,
         setting: interaction.setting,
         maxTurns: runtimeConfig.maxTurns,
         prebuiltPrompts,
