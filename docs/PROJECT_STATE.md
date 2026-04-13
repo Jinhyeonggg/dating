@@ -9,10 +9,10 @@
 
 | 항목 | 상태 |
 |---|---|
-| 현재 단계 | **Phase 2-A ✅ + Phase 2-B ✅ (관계 기억) + 롤 매핑 수정 ✅ + Admin Runtime Config ✅ + 시나리오 재설계 ✅** |
+| 현재 단계 | **Phase 2-A ✅ + Phase 2-B ✅ + Admin Runtime Config ✅ + 시나리오 재설계 ✅ + 대화 패턴 개선 ✅** |
 | 프로덕션 배포 | ✅ `https://frontend-eta-neon-97.vercel.app` |
 | 마지막 태그 | `phase1-complete` |
-| 다음 단계 | 튜닝 + super_meme NPC + 전략 방향 결정 |
+| 다음 단계 | 개발 환경 agent 구축 + 튜닝 + super_meme NPC |
 | 기본 브랜치 | `main` |
 | 기술 스택 | Next.js 16 · TypeScript · Tailwind v4 · Supabase Cloud · Anthropic Claude · Vercel |
 
@@ -392,10 +392,11 @@ AppNav → TipBanner → MemoryPromptBanner → {children}
 - 분석 리포트 카테고리/시각화 확장
 
 ### 다음 작업 (우선순위)
+- **개발 환경 agent 구축** — 위 "개발 환경 TODO" 4개 항목
 - **super_meme NPC 클론** — 밈 문화 특화 NPC
 - **전략 방향 결정** — 데이팅 매칭 vs 메타버스 (분석 문서 작성 완료)
 - **메모리 compaction** — 메모리/관계 기억을 압축해서 system prompt에 더 많이 주입
-- **관계 단계별 행동 규칙 확장** — 예: 친해진 사이면 반말 허용
+- **관계 단계별 행동 규칙 확장** — 예: 친해진 사이면 농담 허용 범위 확대
 - Interaction 후 자동 에피소드 메모리 추출
 - 실제 프롬프트 출력 로깅 + 토큰 사용량 모니터링
 
@@ -436,6 +437,33 @@ AppNav → TipBanner → MemoryPromptBanner → {children}
 | 전략 분석 (데이팅 vs 메타버스) | `docs/reference/strategic-analysis-dating-vs-metaverse.md` |
 | 튜닝 가이드 | `docs/reference/tuning-guide.md` |
 | Plan 문서 10개 | `docs/superpowers/plans/2026-04-*.md` |
+
+---
+
+## 개발 환경 TODO
+
+프로젝트 개발과 직접 관련된 기능은 아니지만, 효율적 개발을 위해 갖춰야 할 도구들.
+
+### 1. 대화 패턴 품질 평가 agent
+- 클론 대화가 자연스러운지 판단하는 전문 agent
+- 프롬프트 변경 전후 품질 비교
+- 존댓말/반말 전환, 전문용어 사용, 기억 활용 등 체크
+
+### 2. 토큰 최적화 리서치 agent
+- 현재 턴당 ~4,600 토큰 → 최적화 여지 탐색
+- VectorDB, RAG 등 기법 리서치 (기억 주입 방식 개선)
+- Anthropic prompt caching 적용 (TEXTURE_RULES + BEHAVIOR가 입력의 55%)
+- 메모리 compaction 전략 설계
+
+### 3. 프롬프트 디버깅 agent
+- Interaction 실행 시 실제 system prompt + messages 로깅
+- 턴별 토큰 수/비용 트래킹
+- 현재는 블랙박스 — 문제 발생 시 추측으로 디버깅 중
+
+### 4. 자동 회귀 테스트 agent
+- 프롬프트 변경 후 같은 클론 쌍으로 N번 대화 실행
+- 품질 비교 자동화 (수동 확인 대체)
+- A/B 테스트 프레임워크
 
 ---
 
