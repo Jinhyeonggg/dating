@@ -107,7 +107,7 @@ export function NotificationBell() {
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{item.names}</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
-                      {item.scenario} · {new Date(item.created_at).toLocaleDateString('ko-KR')}
+                      {item.scenario} · {new Date(item.created_at).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })}
                     </p>
                   </div>
                 </button>

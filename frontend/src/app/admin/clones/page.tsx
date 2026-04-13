@@ -125,7 +125,7 @@ export default function AdminClonesPage() {
                     )}
                   </td>
                   <td className="py-3 pr-4 text-gray-500">
-                    {new Date(clone.created_at).toLocaleDateString('ko-KR')}
+                    {new Date(clone.created_at).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })}
                   </td>
                   <td className="py-3">
                     <Button

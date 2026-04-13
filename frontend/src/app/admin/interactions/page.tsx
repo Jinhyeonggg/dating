@@ -143,7 +143,7 @@ export default function AdminInteractionsPage() {
                   STATUS_COLORS[interaction.status] ?? 'text-gray-500'
                 const createdAt = new Date(interaction.created_at).toLocaleDateString(
                   'ko-KR',
-                  { year: 'numeric', month: '2-digit', day: '2-digit' }
+                  { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }
                 )
 
                 return (
