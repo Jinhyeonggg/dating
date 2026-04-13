@@ -1,6 +1,7 @@
 import type { StyleCard, StyleCardMatch } from './types'
 import type { MoodState } from '@/lib/mood/types'
 import type { Persona, CloneMemory } from '@/types/persona'
+import type { SpeechRegister } from '@/types/relationship'
 
 // ---------------------------------------------------------------------------
 // Keyword maps for detectField
@@ -238,14 +239,29 @@ export function pickStyleCards(
   persona: Persona,
   memories: CloneMemory[],
   mood?: MoodState,
-  options?: { topK?: number }
+  options?: { topK?: number; speechRegister?: SpeechRegister | null }
 ): StyleCard[] {
   if (cards.length === 0) return []
-  if (cards.length === 1) return [cards[0]]
 
   const topK = options?.topK ?? 3
+  const sr = options?.speechRegister
 
-  const scored = cards
+  // speech_register로 카드 사전 필터링
+  let filtered = cards
+  if (sr) {
+    const registerFilter = sr === 'casual' ? 'casual' : 'formal'
+    filtered = cards.filter((c) => {
+      const cardRegister = c.match.register
+      if (!cardRegister) return true
+      if (sr === 'banmal-ready' && cardRegister === 'mixed') return true
+      return cardRegister === registerFilter
+    })
+    if (filtered.length === 0) filtered = cards
+  }
+
+  if (filtered.length === 1) return [filtered[0]]
+
+  const scored = filtered
     .map((card) => ({ card, score: computeCardScore(card, persona, memories, mood) }))
     .sort((a, b) => b.score - a.score)
 
