@@ -5,7 +5,6 @@ export const REALISM_DEFAULTS = {
 } as const
 
 export const INTERACTION_DEFAULTS = {
-  // TODO: 테스트 후 20으로 복원
   MAX_TURNS: 15,
   MIN_RESPONSE_LENGTH: 4,
   END_SIGNAL_SHORT_TURNS_THRESHOLD: 5,
@@ -16,7 +15,7 @@ export const INTERACTION_DEFAULTS = {
   RELATIONSHIP_MEMORY_INJECTION_LIMIT: 20,
 } as const
 
-/** Phase 2-B: 관계 기억 추출 feature flag. 테스트 후 false로 전환 (API 토큰 절약) */
+/** 관계 기억 추출 feature flag. 런타임 설정(platform_config)으로 제어. 여기는 fallback 기본값. */
 export const FEATURE_FLAGS = {
   ENABLE_RELATIONSHIP_MEMORY: true,
 } as const
