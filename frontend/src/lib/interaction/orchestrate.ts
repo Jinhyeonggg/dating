@@ -5,10 +5,11 @@ import { scoreAndSelectItems } from '@/lib/world/collect'
 import { buildWorldSnippet } from '@/lib/world/inject'
 import { buildEnhancedSystemPrompt } from '@/lib/prompts/persona'
 import { TEXTURE_RULES } from '@/lib/prompts/texture'
-import { REALISM_DEFAULTS, FEATURE_FLAGS } from '@/lib/config/interaction'
+import { REALISM_DEFAULTS } from '@/lib/config/interaction'
 import { createServiceClient } from '@/lib/supabase/service'
 import type { CloneRelationship } from '@/types/relationship'
 import type { Clone, CloneMemory } from '@/types/persona'
+import type { RuntimeConfig } from '@/lib/config/runtime'
 import type { WorldSnippet as WorldSnippetType } from '@/lib/world/types'
 import type { MoodState } from '@/lib/mood/types'
 
@@ -55,6 +56,7 @@ export async function prepareClonePrompts(
   memoriesByClone: Map<string, CloneMemory[]>,
   interactionId: string,
   date: string,
+  runtimeConfig?: Pick<RuntimeConfig, 'relationshipMemoryEnabled'>,
 ): Promise<Map<string, ClonePromptContext>> {
   // 1. Load world context (shared across all clones in this interaction)
   const worldRows = await fetchWorldContextRows(date)
@@ -64,7 +66,8 @@ export async function prepareClonePrompts(
 
   // 0. Load relationship memories (if feature enabled)
   const relationshipMap = new Map<string, CloneRelationship>()
-  if (FEATURE_FLAGS.ENABLE_RELATIONSHIP_MEMORY && participants.length === 2) {
+  const relMemEnabled = runtimeConfig?.relationshipMemoryEnabled ?? true
+  if (relMemEnabled && participants.length === 2) {
     const adminRel = createServiceClient()
     const [a, b] = participants
     const { data: relRows } = await adminRel

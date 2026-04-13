@@ -3,7 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { runInteraction } from '@/lib/interaction/engine'
 import { prepareClonePrompts } from '@/lib/interaction/orchestrate'
-import { DEFAULT_SCENARIOS, FEATURE_FLAGS } from '@/lib/config/interaction'
+import { DEFAULT_SCENARIOS } from '@/lib/config/interaction'
+import { getRuntimeConfig } from '@/lib/config/runtime'
 import { extractRelationshipMemories } from '@/lib/relationship/service'
 import { errors, AppError } from '@/lib/errors'
 import type { Clone, CloneMemory } from '@/types/persona'
@@ -87,13 +88,14 @@ export async function POST(
       memoriesByClone.set(p.id, (mems ?? []) as CloneMemory[])
     }
 
+    const runtimeConfig = await getRuntimeConfig()
     const metadata = (interaction.metadata ?? {}) as { scenarioId?: string }
     const scenarioId = metadata.scenarioId ?? DEFAULT_SCENARIOS[0].id
     const scenario = DEFAULT_SCENARIOS.find((s) => s.id === scenarioId) ?? DEFAULT_SCENARIOS[0]
 
     // 모듈레이터 오케스트레이션: mood + style cards + world context → enhanced system prompts
     const today = new Date().toISOString().split('T')[0]
-    const clonePrompts = await prepareClonePrompts(participants, memoriesByClone, id, today)
+    const clonePrompts = await prepareClonePrompts(participants, memoriesByClone, id, today, runtimeConfig)
     const prebuiltPrompts = new Map<string, string>()
     for (const [cloneId, ctx] of clonePrompts) {
       prebuiltPrompts.set(cloneId, ctx.systemPrompt)
@@ -117,9 +119,11 @@ export async function POST(
           description: scenario.description,
         },
         setting: interaction.setting,
-        maxTurns: interaction.max_turns,
+        maxTurns: runtimeConfig.maxTurns,
         prebuiltPrompts,
         startedAt: Date.now(),
+        model: runtimeConfig.interactionModel,
+        maxOutputTokens: runtimeConfig.maxOutputTokens,
       })
     } catch (engineErr) {
       // 엔진 자체가 throw한 경우에도 status를 failed로 업데이트
@@ -149,7 +153,7 @@ export async function POST(
       .eq('id', id)
 
     // 관계 기억 자동 추출 — after()로 response 반환 후 실행
-    if (FEATURE_FLAGS.ENABLE_RELATIONSHIP_MEMORY && result.status === 'completed') {
+    if (runtimeConfig.relationshipMemoryEnabled && result.status === 'completed') {
       const participantData = participants.map((p) => ({
         id: p.id,
         name: p.name,

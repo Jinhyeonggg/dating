@@ -24,6 +24,9 @@ export interface RunInteractionInput {
   prebuiltPrompts?: Map<string, string>
   /** 엔진 시작 시각. 이 시각 기준으로 TIMEOUT_MS 초과 시 자동 종료 */
   startedAt?: number
+  /** 런타임 설정에서 주입. 없으면 코드 상수 fallback */
+  model?: string
+  maxOutputTokens?: number
 }
 
 // Vercel 300초 타임아웃 전에 여유를 두고 종료 (270초)
@@ -154,10 +157,10 @@ export async function runInteraction(
       }
 
       const rawContent = await callClaude({
-        model: CLAUDE_MODELS.INTERACTION,
+        model: input.model ?? CLAUDE_MODELS.INTERACTION,
         system: systemPrompt,
         messages: history,
-        maxTokens: CLAUDE_LIMITS.MAX_OUTPUT_TOKENS_INTERACTION,
+        maxTokens: input.maxOutputTokens ?? CLAUDE_LIMITS.MAX_OUTPUT_TOKENS_INTERACTION,
         temperature: 0.9,
       })
 
