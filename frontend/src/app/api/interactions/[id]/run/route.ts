@@ -44,9 +44,20 @@ export async function POST(
     if (iErr || !interaction) throw errors.notFound('Interaction')
     if (interaction.created_by !== user.id) throw errors.forbidden()
 
-    // 이미 running/completed/failed 인 경우 중복 실행 방지
-    if (interaction.status !== 'pending') {
+    // 이미 completed/failed/cancelled 인 경우 중복 실행 방지
+    if (['completed', 'failed', 'cancelled'].includes(interaction.status)) {
       return NextResponse.json({ ok: true, status: interaction.status })
+    }
+
+    // stuck된 running 상태 (10분 이상 경과): 재실행 허용
+    if (interaction.status === 'running') {
+      const startedAt = interaction.started_at ? new Date(interaction.started_at).getTime() : 0
+      const elapsed = Date.now() - startedAt
+      if (elapsed < 10 * 60 * 1000) {
+        // 10분 미만이면 아직 실행 중일 수 있으므로 중복 방지
+        return NextResponse.json({ ok: true, status: 'running' })
+      }
+      // 10분 이상이면 stuck된 것으로 판단, 재실행 진행
     }
 
     const { data: participantRows } = await supabase
@@ -92,19 +103,34 @@ export async function POST(
       .update({ status: 'running', started_at: new Date().toISOString() })
       .eq('id', id)
 
-    const result = await runInteraction({
-      interactionId: id,
-      participants,
-      memoriesByClone,
-      scenario: {
-        id: scenario.id,
-        label: scenario.label,
-        description: scenario.description,
-      },
-      setting: interaction.setting,
-      maxTurns: interaction.max_turns,
-      prebuiltPrompts,
-    })
+    let result: Awaited<ReturnType<typeof runInteraction>>
+    try {
+      result = await runInteraction({
+        interactionId: id,
+        participants,
+        memoriesByClone,
+        scenario: {
+          id: scenario.id,
+          label: scenario.label,
+          description: scenario.description,
+        },
+        setting: interaction.setting,
+        maxTurns: interaction.max_turns,
+        prebuiltPrompts,
+      })
+    } catch (engineErr) {
+      // 엔진 자체가 throw한 경우에도 status를 failed로 업데이트
+      const reason = engineErr instanceof Error ? engineErr.message : String(engineErr)
+      await admin
+        .from('interactions')
+        .update({
+          status: 'failed',
+          ended_at: new Date().toISOString(),
+          metadata: { ...metadata, failure_reason: reason },
+        })
+        .eq('id', id)
+      throw engineErr
+    }
 
     await admin
       .from('interactions')

@@ -80,7 +80,25 @@ export default function AdminInteractionsPage() {
 
   return (
     <div className="max-w-5xl mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-6">Admin — Interactions</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold">Admin — Interactions</h1>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={async () => {
+            const res = await fetch('/api/admin/interactions', { method: 'POST' })
+            const json = await res.json()
+            if (res.ok) {
+              alert(`${json.cleaned}개의 stuck interaction을 정리했습니다`)
+              window.location.reload()
+            } else {
+              alert(json.error?.message ?? '실패')
+            }
+          }}
+        >
+          Stuck 정리
+        </Button>
+      </div>
 
       {loading && (
         <div className="space-y-3">
