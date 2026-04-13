@@ -21,13 +21,12 @@ export function parseRelationshipExtraction(raw: unknown): ExtractedRelationship
     )
     .filter((item) =>
       typeof item.topic === 'string' && item.topic.length > 0 &&
-      typeof item.detail === 'string' && item.detail.length > 0 &&
-      typeof item.occurred_at === 'string' && item.occurred_at.length > 0
+      typeof item.detail === 'string' && item.detail.length > 0
     )
     .map((item) => ({
       topic: item.topic as string,
       detail: item.detail as string,
-      occurred_at: item.occurred_at as string,
+      occurred_at: typeof item.occurred_at === 'string' ? item.occurred_at : '',
     }))
 
   if (validMemories.length === 0) {
