@@ -9,10 +9,10 @@
 
 | 항목 | 상태 |
 |---|---|
-| 현재 단계 | **Phase 2-A ✅ + Phase 2-B ✅ + Admin Runtime Config ✅ + 시나리오 재설계 ✅ + 대화 패턴 개선 ✅** |
+| 현재 단계 | **Phase 2 ✅ 완료 (2026-04-13)** |
 | 프로덕션 배포 | ✅ `https://frontend-eta-neon-97.vercel.app` |
 | 마지막 태그 | `phase1-complete` |
-| 다음 단계 | 개발 환경 agent 구축 + 튜닝 + super_meme NPC |
+| 다음 단계 | Phase 3 (다음): 전문 Agent 구축 |
 | 기본 브랜치 | `main` |
 | 기술 스택 | Next.js 16 · TypeScript · Tailwind v4 · Supabase Cloud · Anthropic Claude · Vercel |
 
@@ -386,18 +386,6 @@ AppNav → TipBanner → MemoryPromptBanner → {children}
 - JSON 파싱 강화: 마크다운 코드블록 제거, 토큰 한도 512→1024
 - 프롬프트: memory item 최대 3개, detail 20자 제한
 
-### 다음 작업 (우선순위)
-- **super_meme NPC 클론** — 밈 문화 특화 NPC
-- **전략 방향 결정** — 데이팅 매칭 vs 메타버스 (분석 문서 작성 완료)
-- **관계 단계별 행동 규칙 확장** — 예: 친해진 사이면 농담 허용 범위 확대
-- Interaction 후 자동 에피소드 메모리 추출
-- 실제 프롬프트 출력 로깅 + 토큰 사용량 모니터링
-
-### P3 — Quick wins 묶음
-- Memory 편집/삭제 UI
-- 관계 단계별 행동 규칙 확장 (예: 친해진 사이면 반말 허용)
-- Clone 버전 관리 UI (`clones.version` 컬럼 존재, UI 없음)
-
 ### Phase 3 — 전문 Agent 구축 + 고도화
 - 대화 패턴 품질 평가 agent
 - 토큰 최적화 리서치 agent (VectorDB, RAG, prompt caching)
@@ -405,6 +393,15 @@ AppNav → TipBanner → MemoryPromptBanner → {children}
 - 자동 회귀 테스트 agent (A/B 비교)
 - 메모리 compaction (압축 후 system prompt에 더 많이 주입)
 - Matching 기반 Batch Simulation (top-k 후보 자동 선정 + 일괄 시뮬레이션)
+- super_meme NPC 클론
+- 에피소드 메모리 자동 추출
+- 관계 단계별 행동 규칙 확장
+- Memory 편집/삭제 UI
+- Clone 버전 관리 UI
+
+### 전략 방향 결정 (Phase 무관)
+- 데이팅 매칭 vs 메타버스 방향. Phase 4 이후 로드맵에 영향.
+- 분석 문서: `docs/reference/strategic-analysis-dating-vs-metaverse.md`
 
 ### Phase 4 이후 (n-to-n, 메타버스)
 - 3인 이상 그룹 상호작용
