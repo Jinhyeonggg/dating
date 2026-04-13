@@ -1,6 +1,6 @@
 import type { Persona, CloneMemory } from '@/types/persona'
 import type { InferredTraits } from '@/types/onboarding'
-import type { CloneRelationship } from '@/types/relationship'
+import type { CloneRelationship, SpeechRegister } from '@/types/relationship'
 import { BEHAVIOR_INSTRUCTIONS } from './behavior'
 import { TEXTURE_RULES } from './texture'
 import { INTERACTION_DEFAULTS } from '@/lib/config/interaction'
@@ -84,6 +84,17 @@ function formatRelativeTime(occurred: string): string {
   return new Date(occurred).toISOString().split('T')[0]
 }
 
+const SPEECH_REGISTER_PROMPTS: Record<SpeechRegister, string> = {
+  formal: '존댓말 사용',
+  'banmal-ready': '존댓말 사용 (반말 전환 가능 — 자연스러운 타이밍에 "말 놓을까요?" 시도 가능)',
+  casual: '반말 사용',
+}
+
+export function renderSpeechRegister(register: SpeechRegister | null): string {
+  if (!register) return ''
+  return `[말투: ${SPEECH_REGISTER_PROMPTS[register]}]`
+}
+
 export function renderRelationshipMemory(
   relationship: CloneRelationship | null,
   partnerName: string,
@@ -135,6 +146,7 @@ export interface EnhancedPromptInput {
   worldSnippet?: WorldSnippet | null
   /** 대화 상대 기본 정보 — 역할 혼동 방지용 */
   partnerContext?: { name: string; highlights: string } | null
+  speechRegister?: SpeechRegister | null
 }
 
 function renderMoodHint(mood: MoodState): string {
@@ -185,7 +197,7 @@ function renderOtherRelationshipMemories(
 }
 
 export function buildEnhancedSystemPrompt(input: EnhancedPromptInput): string {
-  const { persona, memories, inferredTraits, relationshipMemory, otherRelationshipMemories, otherMemoryLimit, textureRules, styleCards, mood, worldSnippet, partnerContext } = input
+  const { persona, memories, inferredTraits, relationshipMemory, otherRelationshipMemories, otherMemoryLimit, textureRules, styleCards, mood, worldSnippet, partnerContext, speechRegister } = input
 
   const parts: string[] = []
 
@@ -224,6 +236,12 @@ export function buildEnhancedSystemPrompt(input: EnhancedPromptInput): string {
       otherRelationshipMemories,
       otherMemoryLimit ?? 0,
     )
+    if (rendered) parts.push(rendered)
+  }
+
+  // 4-c. Speech register
+  if (speechRegister) {
+    const rendered = renderSpeechRegister(speechRegister)
     if (rendered) parts.push(rendered)
   }
 
