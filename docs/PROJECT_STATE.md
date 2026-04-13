@@ -1,7 +1,7 @@
 # Project State — Digital Clone Platform
 
 > **Living document.** 매 Phase 끝에 업데이트. 새 대화를 시작할 때 가장 먼저 읽어야 할 문서.
-> 마지막 업데이트: **2026-04-12** (Phase 2-A 완료 시점)
+> 마지막 업데이트: **2026-04-13**
 
 ---
 
@@ -9,7 +9,7 @@
 
 | 항목 | 상태 |
 |---|---|
-| 현재 단계 | **Phase 2 P0 ✅ + Clone Visibility ✅ + Notification Bell ✅ + Phase 2-A Onboarding ✅** |
+| 현재 단계 | **Phase 2 P0 ✅ + Clone Visibility ✅ + Notification ✅ + Phase 2-A Onboarding ✅ + UX/Bug Fixes ✅** |
 | 프로덕션 배포 | ✅ `https://frontend-eta-neon-97.vercel.app` |
 | 마지막 태그 | `phase1-complete` |
 | 다음 단계 | Phase 2-B (Clone 관계 기억) 구현 |
@@ -39,18 +39,21 @@
 - `/login` — Google OAuth + 이메일 매직링크
 - `/clones` — 내 Clone + 커뮤니티 Clone + NPC 3섹션
 - `/clones/mine` — 내 Clone 선택형 뷰 (다중 Clone 대응)
-- `/clones/new` — 빠른 생성 폼
-- `/clones/[id]` — 상세 + 메모리 (NPC 용도 포함)
+- `/clones/new` — 빠른 생성 폼 → 생성 후 `/clones/[id]/onboarding`으로 자동 이동
+- `/clones/[id]` — 상세 + 추론 traits 섹션 + 메모리 (NPC 용도 포함)
 - `/clones/[id]/edit` — 상세 편집 (카테고리 탭) + 공개/비공개 토글 + 필드별 프라이버시 칩
-- `/clones/[id]/onboarding` — 성격 파악 퀴즈 (시나리오 3 + 선택지 4)
+- `/clones/[id]/onboarding` — 성격 파악 퀴즈 (시나리오 3 + 선택지 4), 스킵 가능, 재진행 가능
 - `/interactions` — "받은 대화 요청" / "내가 시작한 대화" 2섹션 + Hero CTA
 - `/interactions/new` — 페어 + 시나리오 선택
-- `/interactions/[id]` — Realtime 뷰어 + 분석 버튼
+- `/interactions/[id]` — Realtime 뷰어 + 분석 버튼 (admin은 service client로 모든 interaction 열람 가능)
 - `/analyses/[id]` — 호환성 리포트
 
 **API**:
 - `GET|POST /api/clones` / `GET|PATCH|DELETE /api/clones/[id]`
+- `POST /api/clones/[id]/onboarding` — 온보딩 응답 제출 → Haiku 추론 → inferred_traits 저장
 - `GET|POST /api/interactions` / `GET|DELETE /api/interactions/[id]` / `POST /api/interactions/[id]/run`
+- `POST /api/interactions/[id]/seen` — 알림 seen 처리
+- `GET /api/notifications` — 미읽은 알림 목록
 - `GET|POST /api/memories`
 - `POST /api/analyses` / `GET /api/analyses/[id]`
 - `GET|POST /api/world-context` / `DELETE /api/world-context/[id]` / `POST /api/world-context/copy`
@@ -58,7 +61,10 @@
 
 **Admin**:
 - `/admin/world` — world context 수동 관리
-- `/admin/interactions` — 전체 interaction 조회 + 삭제
+- `/admin/interactions` — 전체 interaction 조회 + 삭제 + "Stuck 정리" 버튼 (1시간+ running → failed 전환)
+- `/admin/clones` — 전체 clone 조회 + 삭제 (관련 interaction 일괄 삭제)
+- `GET|POST /api/admin/interactions` / `DELETE /api/admin/interactions/[id]`
+- `GET /api/admin/clones` / `DELETE /api/admin/clones/[id]`
 - (ADMIN_USER_IDS env var 기반 접근 제어)
 
 ### 주요 모듈
@@ -66,36 +72,38 @@
 **`lib/`**:
 - `claude.ts` — Anthropic SDK 래퍼 + 지수 백오프 재시도
 - `supabase/{client,server,service,proxy,realtime}.ts` — 4종 Supabase 클라이언트 + Realtime 채널 헬퍼
-- `interaction/engine.ts` — 20턴 루프, `<continue/>` / `<end/>` 마커 파싱, 연속 발화 지원 (최대 3턴)
+- `interaction/engine.ts` — 20턴 루프, `<continue/>` / `<end/>` 마커 파싱, 연속 발화 지원 (최대 3턴), **270초 타임아웃 가드** (Vercel 300초 전 자동 completed)
 - `interaction/remap.ts` — `remapHistoryForSpeaker`, `pickSpeaker` 순수 함수
+- `interaction/orchestrate.ts` — modulator 조립 (mood + cards + world + **inferred_traits** → enhanced prompt)
+- `onboarding/{extract,service}.ts` — 온보딩 추론 파싱 순수 함수 + Haiku 추론 서비스
 - `memory/{service,extract}.ts` — Haiku 추출 서비스 + 파싱/정규화 순수 함수
 - `analysis/{service,parse,prompt}.ts` — Sonnet 분석 서비스 (캐시) + 파싱/프롬프트 순수 함수
-- `prompts/{persona,behavior,interaction,memory,texture,mood}.ts` — 프롬프트 템플릿 + 텍스처 규칙
+- `prompts/{persona,behavior,interaction,memory,texture,mood,onboarding}.ts` — 프롬프트 템플릿 + 텍스처 규칙 + 온보딩 추론
 - `styles/{types,index,match}.ts` + `styles/cards/*.ts` — 스타일 카드 시스템 (6장 시드, 4-tier matcher)
 - `mood/{types,parse,fallback,roll}.ts` — Session-start mood roll (Haiku + code fallback)
 - `world/{types,collect,inject}.ts` — 외부 세계 context 수집 + 프롬프트 주입
-- `interaction/orchestrate.ts` — modulator 조립 (mood + cards + world → enhanced prompt)
 - `admin/guard.ts` — env var 기반 admin 체크
 - `clone/publicFields.ts` — 공개 필드 상수 + persona 필터 함수
-- `config/{claude,interaction,analysis}.ts` — 상수 (모델명, 턴 수, 시나리오, 카테고리, realism defaults)
-- `constants/personaFields.ts` — `PERSONA_SECTIONS` 메타데이터 (폼·프롬프트 공유)
-- `validation/*.ts` — Zod 스키마 5종 (worldContext 추가)
+- `config/{claude,interaction,analysis}.ts` — 상수 (모델명, 턴 수, 시나리오, 카테고리, realism defaults, `CLAUDE_MODELS.ONBOARDING`)
+- `constants/{personaFields,onboardingQuestions}.ts` — `PERSONA_SECTIONS` + 온보딩 질문 세트 (시나리오 3 + 선택지 4)
+- `validation/*.ts` — Zod 스키마 6종 (onboarding 추가)
 - `errors.ts` — `AppError` + `errors` 팩토리
 
 **`components/`**:
 - `ui/` — shadcn/ui 프리미티브 (card, button, badge, input, textarea, select, tabs, alert-dialog, skeleton, sonner, dropdown-menu, form, label, avatar, page-skeleton)
-- `nav/` — `AppNav` (서버, 받은 요청 개수 뱃지 포함) + `NavLinks` + `BackButton` + `LogoutButton` (클라)
+- `nav/` — `AppNav` (서버, 받은 요청 개수 뱃지 포함) + `NavLinks` + `BackButton` + `LogoutButton` + `NotificationBell` (드롭다운 + seen 처리) + **`TipBanner`** (랜덤 팁, 세션별)
 - `persona/` — `ArrayInput`, `PersonaFieldRow`, `PersonaSection`, `PersonaQuickForm`, `PersonaFullEditor`, `PersonaSummaryCard`, `PersonaDetailView`, `ExpandablePersonaDetail`
 - `clone/` — `CloneCard`, `CloneList`, `CloneNpcBadge`, `DeleteCloneButton`, `MyCloneSelector`
 - `interaction/` — `InteractionViewer`, `MessageBubble`, `TypingIndicator`, `InteractionPairPicker`, `ScenarioPicker`, `InteractionStatusBadge`, `InteractionProgressBar`, `NewInteractionHero`, `DeleteInteractionButton`
-- `memory/` — `MemoryInputBox`, `MemoryItem`, `MemoryTimeline`
+- `memory/` — `MemoryInputBox`, `MemoryItem`, `MemoryTimeline`, **`MemoryPromptBanner`** (1시간 미접속 후 재방문 시 메모리 업데이트 유도, 현재 테스트용 5초)
+- `onboarding/` — `OnboardingCard` (질문 카드 + 진행 바), `TraitsPreview` (추론 결과 프리뷰), `OnboardingFlow` (전체 흐름 관리 + 에러 화면 + 스피너)
 - `analysis/` — `AnalysisReport`, `AnalysisGenerateButton`, `CategoryCard`, `ScoreBar`
 
 ### DB 스키마 (Supabase Cloud: `qegpqadsxujgmodocsme`)
 
 테이블: `profiles`, `clones`, `clone_memories`, `interactions`, `interaction_participants`, `interaction_events`, `analyses`, `world_context`
 
-**마이그레이션 9개**:
+**마이그레이션 18개**:
 1. `20260411000001_init_profiles.sql`
 2. `20260411000002_init_clones.sql`
 3. `20260411000003_init_clone_memories.sql`
@@ -106,12 +114,18 @@
 8. `20260411000008_seed_npc_clones.sql`
 9. `20260412000001_fix_rls_recursion.sql` — `interaction_is_mine(uuid)` SECURITY DEFINER 헬퍼로 재귀 제거
 10. `20260412000002_next_speaker_column.sql` — `interaction_events.next_speaker_clone_id`
-
 11. `20260413000001_world_context.sql` — `world_context` 테이블 + RLS (Phase 2 P0)
 12. `20260412000003_clone_visibility.sql` — `clones.is_public`, `clones.public_fields` + RLS 확장
-13. `20260412000004_participant_seen_at.sql` — interaction_participants.seen_at
+13. `20260412000004_participant_seen_at.sql` — `interaction_participants.seen_at`
 14. `20260412000005_inferred_traits.sql` — `clones.inferred_traits` jsonb (Phase 2-A)
-15. `20260412000006_fix_rls_participant_visibility.sql` — `interaction_is_mine` 함수 수정 (참여자도 interaction 조회 가능)
+15. `20260412000006_fix_rls_participant_visibility.sql` — `interaction_is_mine` 함수 수정 (참여자도 조회 가능)
+16. `20260412000007_fix_interactions_select_rls.sql` — `interactions` 테이블 SELECT 정책 추가 (참여자 포함)
+17. `20260412000008_fix_clones_interaction_participant_rls.sql` — 비공개 clone도 interaction 상대이면 조회 가능
+18. `20260412000009_fix_clones_rls_recursion.sql` — `clone_is_my_interaction_partner` SECURITY DEFINER로 재귀 방지
+
+**RLS 헬퍼 함수 (SECURITY DEFINER)**:
+- `interaction_is_mine(uuid)` — 내가 생성했거나 내 clone이 참여한 interaction인지 판정
+- `clone_is_my_interaction_partner(uuid)` — 해당 clone이 내 clone과 같은 interaction에 참여했는지 판정
 
 모든 마이그레이션 Supabase Cloud 적용 완료.
 
@@ -145,31 +159,77 @@
 |---|---|
 | 별도 백엔드 서버 분리 금지 | Next.js API Routes로 통합. Vercel 단일 배포. FastAPI 제거된 이유 |
 | Clone 당 stateless Claude 호출 + role 재매핑 | 페르소나 오염 방지. 표준 패턴 |
-| persona_json + clone_memories 레이어 분리 | 정적/동적 업데이트 빈도 차이. 섞지 말 것 |
+| Clone 데이터 4레이어 분리 | `persona_json`(유저 입력) / `inferred_traits`(AI 추론) / `clone_memories`(에피소드) / `clone_relationships`(관계 기억, Phase 2-B). 각 레이어 역할 섞지 말 것 |
+| 온보딩은 폼과 독립적 | 폼의 빈 필드를 채우는 것이 아니라, 폼으로 잡기 어려운 행동 패턴을 별도 추출 |
 | `interaction_participants` 조인 테이블 | 1:1 하드코딩 금지. n-to-n 대비 |
 | 도메인 용어 "Interaction" | "소개팅"·"데이팅" 으로 좁히지 말 것 |
 | 데이터 드리븐 폼 (`PERSONA_SECTIONS`) | 폼 + 프롬프트 + Zod 스키마가 단일 소스 공유 |
-| 20턴 기본값 | 토큰 비용 + 대화 현실감 balance |
+| 20턴 기본값 + 270초 타임아웃 가드 | 토큰 비용 + 대화 현실감 balance. Vercel 300초 전에 자동 completed |
 | Interaction create / run 엔드포인트 분리 | 클라이언트가 뷰어로 먼저 이동 후 실행 트리거 → 300초 블로킹 회피 |
+| Interaction run 에러 시 failed 전환 | try/catch로 엔진 에러 잡아서 status 업데이트. stuck 방지 |
 | Analysis 캐시 (같은 interaction = 1 analysis) | LLM 비용 절감 |
 | 메모리 kind 4종 고정 | `event`/`mood`/`fact`/`preference_update` 이외 확장 금지 (파싱 단순) |
-| SECURITY DEFINER `interaction_is_mine` 헬퍼 | RLS 상호 참조 재귀 방지 |
+| SECURITY DEFINER 헬퍼 함수 2종 | `interaction_is_mine` + `clone_is_my_interaction_partner` — RLS 상호 참조 재귀 방지 |
 | `next_speaker_clone_id` 컬럼 | AI가 다음 발화자 결정 → 연속 발화 지원. 교대 하드코딩 금지 |
 | `<continue/>` / `<end/>` 마커 | `<promise>END</promise>` 와 동일 패턴. 프롬프트에서 강제 |
-| `InteractionProgressBar` / `ScoreBar` 만 inline `style` 허용 | dynamic % 필요. 다른 곳에서는 Tailwind 유틸만 |
+| `InteractionProgressBar` / `ScoreBar` / `OnboardingCard 진행바` 만 inline `style` 허용 | dynamic % 필요. 다른 곳에서는 Tailwind 유틸만 |
 | UI 안정성 규칙 | 카드/탭/스크롤바 레이아웃 점프 금지 — `h-full`, `min-h`, `\u00A0`, `scrollbar-gutter: stable` 등 |
 | Mood는 tint, not driver | session-start 1회 주입, 1~2줄 자연어만. 수치는 prompt에 금지. 대화 중 drift 허용 |
 | 스타일 카드는 TS 파일로 관리 | DB 아닌 `lib/styles/cards/*.ts`. 50장 넘어가면 DB 이관 재검토 |
 | World context 수동 큐레이션 | v1은 `/admin/world`에서 수동. 미래에 뉴스 API 자동 수집으로 전환 예정. collection vs injection 분리 |
 | Admin은 env var 기반 | `ADMIN_USER_IDS` env var. DB 컬럼 아님. 간단함 우선 |
-| Claude 4.6 assistant prefill 미지원 | 연속 발화 시 history가 assistant로 끝나면 `(이어서 말해)` continuation prompt 추가 |
+| Admin은 service client로 모든 데이터 접근 | interaction viewer에서 admin이면 RLS 우회 |
 | Clone 기본 공개 + 필드별 프라이버시 | `is_public` default true, `public_fields` 배열로 필드별 공개/비공개 제어. Interaction에서는 전체 persona 사용, 열람 시만 필터링 |
 | Persona 필드 필터링은 API 레이어 | RLS는 row 단위만 가능. column masking은 서버 코드(`filterPersonaByPublicFields`)에서 수행 |
-| Clone 데이터 4레이어 분리 | `persona_json`(유저 입력) / `inferred_traits`(AI 추론) / `clone_memories`(에피소드) / `clone_relationships`(관계 기억, Phase 2-B). 각 레이어 역할 섞지 말 것 |
-| 온보딩은 폼과 독립적 | 폼의 빈 필드를 채우는 것이 아니라, 폼으로 잡기 어려운 행동 패턴을 별도 추출 |
 | 인사는 1턴 제한 | behavior 규칙으로 강제. 2턴째부터 본론(프로필 기반 질문/관심사)으로 |
 | 첫 메시지에 상대 프로필 하이라이트 주입 | 엔진이 listener의 persona에서 직업/취미/MBTI 추출 → first user message에 포함 |
-| Interaction 목록 started/received 분리 | `created_by`로 내가 시작한 것 식별, `interaction_participants`로 받은 것 식별 |
+
+---
+
+## System Prompt 조립 순서
+
+Interaction 시 Clone별 system prompt는 다음 순서로 조립 (`orchestrate.ts` → `buildEnhancedSystemPrompt`):
+
+```
+1. TEXTURE_RULES              ← lib/prompts/texture.ts (카톡 리얼리즘)
+2. PERSONA CORE               ← persona_json (null 필드 제외)
+3. INFERRED TRAITS             ← inferred_traits (null이면 생략, Phase 2-A)
+4. (Phase 2-B) RELATIONSHIP MEMORY  ← clone_relationships (미구현)
+5. EPISODIC MEMORIES           ← clone_memories 최근 10개
+6. MOOD HINT                   ← rollMood() (Haiku + fallback)
+7. STYLE CARDS                 ← pickStyleCards() (최대 2장)
+8. WORLD CONTEXT               ← world_context 테이블
+9. BEHAVIOR INSTRUCTIONS       ← lib/prompts/behavior.ts
+```
+
+튜닝 포인트: `docs/reference/clone-data-fields.md` 참조.
+
+---
+
+## UX 기능
+
+### 알림 벨 (`NotificationBell`)
+- 30초 간격 polling (`/api/notifications`)
+- 미읽은 interaction 드롭다운 (unread count 뱃지)
+- 클릭 → seen 처리 + interaction 페이지 이동
+- 읽은 알림만 개별 제거 (전체 삭제 아님)
+
+### 메모리 업데이트 유도 배너 (`MemoryPromptBanner`)
+- localStorage로 마지막 접속 시각 추적
+- 1시간 이상 미접속 후 재방문 시 파란색 그라데이션 배너 표시 (**현재 테스트용 5초 — 복원 필요**)
+- 클릭 → 인라인 메모리 입력 확장 (다중 clone 선택 지원)
+- "닫기" / "나중에" → 이번 탭 세션에서 dismiss
+
+### 랜덤 팁 배너 (`TipBanner`)
+- 세션별 랜덤 팁 1개 표시 (amber 그라데이션)
+- 팁 목록: 상호작용 안내, 메모리 업데이트, 상세 정보 수정
+- sessionStorage 기반 dismiss (새 탭에선 다시 표시)
+- 액션 링크 버튼으로 관련 페이지 이동
+
+### 레이아웃 구조 (layout.tsx)
+```
+AppNav → TipBanner → MemoryPromptBanner → {children}
+```
 
 ---
 
@@ -177,34 +237,38 @@
 
 ### 1. Realtime 채널 연결 불안정
 - **증상**: `InteractionViewer` 의 "Realtime: connecting" 이 connected 로 안 넘어갈 때가 있음
-- **원인**: 미확인. Plan 4 RLS 마이그레이션 이후 Realtime 재인증 타이밍 / publication 문제 추정
-- **우회책**: 3초 polling fallback (`GET /api/interactions/[id]` 에서 events 배열 전체 다시 fetch + 머지). Realtime 실패해도 UX 유지
-- **Phase 2 TODO**: 근본 원인 조사, 재연결 정책 개선
+- **우회책**: 3초 polling fallback. Realtime 실패해도 UX 유지
+- **TODO**: 근본 원인 조사
 
-### 2. Clone 시뮬레이션 현실감 — Phase 2 P0에서 대폭 개선
-- **이전 증상**: 대화가 평탄, 모든 조합 비슷한 톤, 페르소나별 말투 차이 약함
-- **P0 해결책**:
-  - 메시지 텍스처 규칙 (register-aware: 존댓말/반말 구분)
-  - 스타일 카드 6장 시드 + 4-tier persona 매칭
-  - Session-start mood roll (Haiku) → 세션마다 다른 톤
-  - World context 수동 큐레이션 (`/admin/world`)
-  - Dev CLI (`npm run interact`) 로 튜닝 루프 지원
-- **현재 상태**: 기본 인프라 완성, 지속적 튜닝으로 개선 중
-- **추가 개선 (Plan 7 세션)**:
-  - 인사 반복 방지 (behavior 규칙 + 첫 메시지에 프로필 하이라이트 주입)
-  - Register-aware 축약어 규칙 (존댓말 사이에서 초성 축약 금지)
-  - 짧은 응답 임계값 완화 (한국어 대화에 맞게 MIN_RESPONSE_LENGTH 4, THRESHOLD 5)
-- **잔여 이슈**: 스타일 카드 다양성 확대 필요, 연속 발화 빈도 목표치(30%) 미달
+### 2. Anthropic API Rate Limit — 동시 요청 시 속도 저하
+- **증상**: 여러 유저가 동시에 interaction 실행 시 답변 속도 현저히 느려짐
+- **원인**: 1 Interaction = ~21 API 호출 (mood 1 + 턴 20). 동시 실행 시 429 rate limit 도달
+- **현재 대응**: `callClaude` 지수 백오프 재시도 (1초→2초→4초)
+- **단기 개선 예정**: 동시 실행 제한 (세마포어), 턴 수 축소 (12-15)
+- **중기**: Anthropic Tier 업그레이드, 큐잉 시스템
 
-### 3. Supabase 이메일 매직링크 rate limit
-- **증상**: 반복 테스트 시 "email rate limit exceeded" (시간당 3-4통)
+### 3. Stuck Interaction 방지 — 해결됨 (2026-04-13)
+- **이전 증상**: Vercel 300초 타임아웃 또는 엔진 에러 시 status가 `running`으로 영구 남음
+- **해결**:
+  1. 엔진에 270초 타임아웃 가드 → 자동 `completed`
+  2. `runInteraction` try/catch → 에러 시 `failed` 업데이트
+  3. 10분+ stuck 시 재실행 허용
+  4. Admin "Stuck 정리" 버튼 (1시간+ → failed 전환)
+
+### 4. RLS 관련 404 — 해결됨 (2026-04-12~13)
+- **이전 증상**: 상대가 시작한 interaction, 비공개 clone 상대 → 페이지 404
+- **원인**: `interaction_is_mine` 함수가 `created_by`만 체크, `interactions` SELECT 정책에 참여자 누락, 비공개 clone RLS 차단
+- **해결**: 마이그레이션 15~18로 3중 수정
+  - `interaction_is_mine` 확장 (참여자 포함)
+  - `interactions` SELECT 정책 추가
+  - `clone_is_my_interaction_partner` SECURITY DEFINER 헬퍼
+
+### 5. Supabase 이메일 매직링크 rate limit
 - **우회책**: Google OAuth 로 로그인 (현재 주 로그인 수단)
-- **Phase 2 TODO (선택)**: Resend/SendGrid 커스텀 SMTP 연결로 rate limit 우회
 
-### 4. Dev CLI 스크립트의 realism 튜닝 루프 — Phase 2 P0에서 해결
-- **상태**: `npm run interact` CLI 완성. NPC 이름/번호 축약, clone 이름 검색, 자동 체크리스트 평가 지원
-- **Round 1 결과**: 마침표 0%, 감정 자음 40%, 문어체 접속사 0회 (PASS). 연속 메시지 20% (FAIL — 목표 30%)
-- **현재**: 유저가 `texture.ts` / `styles/cards/` 수정 → CLI 재실행으로 지속 튜닝 중
+### 6. 메모리 배너 간격 — 테스트 후 복원 필요
+- `MemoryPromptBanner.tsx`의 `ONE_HOUR_MS`가 현재 `5 * 1000` (5초)
+- 테스트 후 `60 * 60 * 1000` (1시간)으로 복원할 것
 
 ---
 
@@ -224,13 +288,38 @@
 - `/clones` 3섹션: 내 Clone → 커뮤니티 → NPC
 - 필드별 프라이버시 칩 (편집 페이지 인라인)
 - Pair picker에 커뮤니티 Clone 추가
-- `/admin/interactions` 관리 대시보드
+- `/admin/interactions` 관리 대시보드 + Stuck 정리
+- `/admin/clones` 관리 대시보드 (clone + 관련 interaction 삭제)
 - Interaction 목록 "받은 요청" / "내가 시작한" 분리 + navbar 알림
 - 알림 벨 (unread count + 드롭다운 + seen 처리)
-- Interaction 목록 "받은 요청" / "내가 시작한" 분리
 - 인사 반복 방지 + 플랫폼 맥락 프롬프트 개선
 - Spec: `docs/superpowers/specs/2026-04-12-clone-visibility-admin-interactions-design.md`
 - Plan: `docs/superpowers/plans/2026-04-12-clone-visibility-admin-interactions.md`
+
+### Phase 2-A ✅ 완료 — Implicit Persona Onboarding
+- Clone 생성 후 시나리오(3) + 선택지(4) 퀴즈 온보딩 (2-3분)
+- Haiku 1회 호출로 `InferredTraits` 추론 → `clones.inferred_traits` jsonb 저장
+- 추론 결과 프리뷰 + 확인/재진행 UI
+- System prompt에 inferred_traits 레이어 주입 (persona core 다음)
+- Clone 상세 페이지에 traits 섹션 + 온보딩 CTA
+- 에러 화면 (분석 실패 시 재시도/스킵 선택)
+- Spec: `docs/superpowers/specs/2026-04-12-implicit-persona-clone-identity-design.md`
+- Plan: `docs/superpowers/plans/2026-04-12-phase2a-implicit-persona-onboarding.md`
+
+### UX 개선 ✅ 완료 (2026-04-13)
+- 메모리 업데이트 유도 배너 (1시간 미접속 후 재방문)
+- 랜덤 팁 배너 (세션별 1개)
+- 온보딩 분석 중 스피너 + 에러 화면
+- Admin interaction viewer 접근 (service client)
+
+### Phase 2-B — Clone 관계 기억 (다음)
+- `clone_relationships` 테이블 (양방향, 1급 엔티티)
+- Interaction 종료 후 양방향 관계 기억 자동 추출 (Haiku)
+- 솔직한 내면 평가 원칙 (AI스러운 긍정 편향 억제)
+- System prompt에 관계 기억 주입
+- Phase 3+에 주관적 평가 (`impression`, `affinity_score`) 확장
+- Spec: `docs/superpowers/specs/2026-04-12-implicit-persona-clone-identity-design.md` 섹션 3
+- Plan: `docs/superpowers/plans/2026-04-12-phase2b-clone-relationship-memory.md`
 
 ### P2 — Matching 기반 Batch Simulation
 - Persona 기반 top-k 후보 선정 (태그 overlap → 나중에 embedding)
@@ -241,7 +330,7 @@
 - Memory 편집/삭제 UI
 - 시나리오 커스텀 (현재 3개 하드코딩)
 - Clone 버전 관리 UI (`clones.version` 컬럼 존재, UI 없음)
-- 민감 정보 toggle UI
+- Interaction 후 자동 에피소드 메모리 추출 (Phase 2-B에서 같이 해도 됨)
 
 ### 관망 (재현 안 됨 / defer)
 - Realtime 채널 안정화 — 유저 테스트에서 재현 안 됨
@@ -251,6 +340,7 @@
 - 3인 이상 그룹 상호작용
 - 관계 그래프
 - Clone 자율 상호작용 스케줄링
+- 주관적 평가 + 호감도 추적
 - 카카오톡/인스타 파서
 - 지속적 메타버스
 
@@ -265,10 +355,12 @@
 | Interaction 엔진·분석 | `.claude/skills/interaction/SKILL.md` |
 | DB 스키마·RLS | `.claude/skills/db-schema/SKILL.md` |
 | 코드 리뷰 체크리스트 | `.claude/skills/review/SKILL.md` |
+| Clone 데이터 필드 맵 | `docs/reference/clone-data-fields.md` |
 | Phase 1 설계 스펙 | `docs/superpowers/specs/2026-04-11-phase1-digital-clone-design.md` |
 | Phase 2 P0 설계 스펙 | `docs/superpowers/specs/2026-04-12-phase2-p0-realism-world-context-design.md` |
 | Clone Visibility 설계 스펙 | `docs/superpowers/specs/2026-04-12-clone-visibility-admin-interactions-design.md` |
-| Plan 문서 7개 | `docs/superpowers/plans/2026-04-*.md` |
+| Phase 2-A/2-B 설계 스펙 | `docs/superpowers/specs/2026-04-12-implicit-persona-clone-identity-design.md` |
+| Plan 문서 9개 | `docs/superpowers/plans/2026-04-*.md` |
 
 ---
 
@@ -279,6 +371,7 @@
 1. `CLAUDE.md` 자동 로드 — 프로젝트 비전·규칙 확보
 2. **이 파일 (`docs/PROJECT_STATE.md`)** 먼저 읽기 — 현재 상태·이슈·백로그
 3. 필요하면 관련 Skill 호출 (persona/interaction/db-schema)
-4. Phase 2 P0 완료 상태 — 다음은 P2 (Matching) 또는 P3 (Quick wins)
-5. 튜닝 루프는 `npm run interact`로 지속 가능 (blocking 아님)
-6. 신규 작업은 항상 **기존 결정 재확인** ("재도전 금지" 섹션) 후 시작
+4. **메모리 배너 간격 복원 확인** (`ONE_HOUR_MS` → 1시간)
+5. Phase 2-B 구현 준비 완료 (Plan 있음)
+6. 튜닝 루프는 `npm run interact`로 지속 가능 (blocking 아님)
+7. 신규 작업은 항상 **기존 결정 재확인** ("재도전 금지" 섹션) 후 시작
