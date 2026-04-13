@@ -54,8 +54,7 @@ JSON으로만 응답하세요. 다른 설명 금지.
   "new_memories": [
     {
       "topic": "<주제 키워드>",
-      "detail": "<내가 기억하는 것, 1문장, 1인칭>",
-      "occurred_at": "<YYYY-MM-DD>"
+      "detail": "<내가 기억하는 것, 1문장, 1인칭>"
     }
   ]
 }

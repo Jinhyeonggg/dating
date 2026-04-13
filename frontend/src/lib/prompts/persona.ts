@@ -69,6 +69,21 @@ export function renderInferredTraits(traits: InferredTraits | null): string {
   return lines.join('\n')
 }
 
+function formatRelativeTime(occurred: string): string {
+  const then = new Date(occurred).getTime()
+  const now = Date.now()
+  const diffMs = now - then
+  const diffMin = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMin / 60)
+  const diffDays = Math.floor(diffHours / 24)
+
+  if (diffMin < 60) return `${diffMin}분 전`
+  if (diffHours < 24) return `${diffHours}시간 전`
+  if (diffDays === 1) return '어제'
+  if (diffDays < 7) return `${diffDays}일 전`
+  return new Date(occurred).toISOString().split('T')[0]
+}
+
 export function renderRelationshipMemory(
   relationship: CloneRelationship | null,
   partnerName: string,
@@ -87,7 +102,8 @@ export function renderRelationshipMemory(
   const picked = sorted.slice(0, limit)
 
   for (const m of picked) {
-    lines.push(`- [${m.topic}] ${m.detail} (${m.occurred_at})`)
+    const timeLabel = formatRelativeTime(m.occurred_at)
+    lines.push(`- [${m.topic}] ${m.detail} (${timeLabel})`)
   }
 
   return lines.join('\n')

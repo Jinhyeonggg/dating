@@ -38,6 +38,7 @@ async function extractForOneClone(
   conversationLog: string,
   existing: CloneRelationship | null,
   interactionId: string,
+  interactionDate: string,
 ): Promise<void> {
   const input: RelationshipExtractionInput = {
     conversationLog,
@@ -72,9 +73,10 @@ async function extractForOneClone(
 
   const extracted = parseRelationshipExtraction(parsed)
 
-  // 각 memory item에 interaction_id 주입 (UI에서 링크용)
+  // 각 memory item에 interaction_id + 실제 날짜 주입
   const memoriesWithId = extracted.new_memories.map((m) => ({
     ...m,
+    occurred_at: interactionDate,
     interaction_id: interactionId,
   }))
 
@@ -156,6 +158,7 @@ export async function extractRelationshipMemories(
 ): Promise<void> {
   if (participants.length !== 2 || events.length === 0) return
 
+  const interactionDate = new Date().toISOString()
   const [cloneA, cloneB] = participants
   const cloneNames = new Map<string, string>([
     [cloneA.id, cloneA.name],
@@ -189,6 +192,7 @@ export async function extractRelationshipMemories(
         conversationLog,
         existingMap.get(`${selfId}→${targetId}`) ?? null,
         interactionId,
+        interactionDate,
       )
     } catch (err) {
       console.error(`[relationship] extraction failed for ${selfId}→${targetId}:`, err)
