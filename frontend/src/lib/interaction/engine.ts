@@ -77,20 +77,27 @@ function pickNextSpeaker(
 
 const CONTINUE_MARKER_RE = /<continue\s*\/?>/gi
 const END_MARKER_RE = /<end\s*\/?>/gi
+const BANMAL_SWITCH_RE = /<banmal-switch\s*\/?>/gi
 
 /**
  * Claude 응답에서 다음 발화자 힌트 파싱.
- * 반환: { cleanContent, wantsContinue }
+ * 반환: { cleanContent, wantsContinue, wantsBanmalSwitch }
  */
 function parseSpeakerHint(raw: string): {
   cleanContent: string
   wantsContinue: boolean
+  wantsBanmalSwitch: boolean
 } {
   const hasContinue = CONTINUE_MARKER_RE.test(raw)
-  // Re-reset regex because /g state
   CONTINUE_MARKER_RE.lastIndex = 0
-  const clean = raw.replace(CONTINUE_MARKER_RE, '').replace(END_MARKER_RE, '').trim()
-  return { cleanContent: clean, wantsContinue: hasContinue }
+  const hasBanmalSwitch = BANMAL_SWITCH_RE.test(raw)
+  BANMAL_SWITCH_RE.lastIndex = 0
+  const clean = raw
+    .replace(CONTINUE_MARKER_RE, '')
+    .replace(END_MARKER_RE, '')
+    .replace(BANMAL_SWITCH_RE, '')
+    .trim()
+  return { cleanContent: clean, wantsContinue: hasContinue, wantsBanmalSwitch: hasBanmalSwitch }
 }
 
 /**
@@ -167,7 +174,15 @@ export async function runInteraction(
         temperature: 0.9,
       })
 
-      const { cleanContent, wantsContinue } = parseSpeakerHint(rawContent)
+      const { cleanContent, wantsContinue, wantsBanmalSwitch } = parseSpeakerHint(rawContent)
+
+      // banmal-switch 감지: 양방향 모두 casual로 전환
+      if (wantsBanmalSwitch) {
+        await admin
+          .from('clone_relationships')
+          .update({ speech_register: 'casual' })
+          .or(`and(clone_id.eq.${speaker.id},target_clone_id.eq.${listener.id}),and(clone_id.eq.${listener.id},target_clone_id.eq.${speaker.id})`)
+      }
 
       // 다음 발화자 결정
       // 연속 제한에 걸렸으면 강제 교대
