@@ -5,9 +5,9 @@ import { scoreAndSelectItems } from '@/lib/world/collect'
 import { buildWorldSnippet } from '@/lib/world/inject'
 import { buildEnhancedSystemPrompt } from '@/lib/prompts/persona'
 import { TEXTURE_RULES } from '@/lib/prompts/texture'
-import { REALISM_DEFAULTS } from '@/lib/config/interaction'
+import { REALISM_DEFAULTS, getSpeechRegister } from '@/lib/config/interaction'
 import { createServiceClient } from '@/lib/supabase/service'
-import type { CloneRelationship } from '@/types/relationship'
+import type { CloneRelationship, SpeechRegister } from '@/types/relationship'
 import type { Clone, CloneMemory } from '@/types/persona'
 import type { RuntimeConfig } from '@/lib/config/runtime'
 import type { WorldSnippet as WorldSnippetType } from '@/lib/world/types'
@@ -84,6 +84,37 @@ export async function prepareClonePrompts(
     }
   }
 
+  // 0-a-2. speech_register 결정 + DB 저장 (null이면 자동 결정)
+  const speechRegisterMap = new Map<string, SpeechRegister>()
+  if (participants.length === 2) {
+    const [a, b] = participants
+    for (const clone of participants) {
+      const other = clone.id === a.id ? b : a
+      const relKey = `${clone.id}→${other.id}`
+      const rel = pairRelationshipMap.get(relKey)
+
+      if (rel?.speech_register) {
+        speechRegisterMap.set(clone.id, rel.speech_register as SpeechRegister)
+      } else {
+        const determined = getSpeechRegister(
+          clone.persona_json.age,
+          other.persona_json.age,
+          rel?.interaction_count ?? 0,
+        )
+        speechRegisterMap.set(clone.id, determined)
+
+        // DB에 저장 (다음 대화에서 재사용)
+        if (rel) {
+          const adminSr = createServiceClient()
+          await adminSr
+            .from('clone_relationships')
+            .update({ speech_register: determined })
+            .eq('id', rel.id)
+        }
+      }
+    }
+  }
+
   // 0-b. Other memories (A↔C, A↔D, ...)
   const otherRelationshipsMap = new Map<string, CloneRelationship[]>()
   if (otherInjEnabled && otherLimit > 0 && participants.length === 2) {
@@ -123,6 +154,7 @@ export async function prepareClonePrompts(
     // 4. Pick style cards
     const styleCards = pickStyleCards(allStyleCards, persona, memories, mood, {
       topK: REALISM_DEFAULTS.STYLE_CARD_TOP_K,
+      speechRegister: speechRegisterMap.get(clone.id) ?? null,
     })
 
     // 5. Build enhanced system prompt
@@ -157,6 +189,7 @@ export async function prepareClonePrompts(
       partnerContext: otherClone
         ? { name: otherClone.name, highlights: partnerHighlights }
         : null,
+      speechRegister: speechRegisterMap.get(clone.id) ?? null,
     })
 
     result.set(clone.id, {
