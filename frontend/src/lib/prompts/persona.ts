@@ -109,7 +109,10 @@ export interface EnhancedPromptInput {
   persona: Persona
   memories?: CloneMemory[]
   inferredTraits?: InferredTraits | null
-  relationshipMemory?: { relationship: CloneRelationship; partnerName: string } | null
+  relationshipMemory?: { relationship: CloneRelationship; partnerName: string; limit?: number } | null
+  /** 다른 클론과의 관계 기억 (A↔C, A↔D, ...) */
+  otherRelationshipMemories?: CloneRelationship[]
+  otherMemoryLimit?: number
   textureRules?: string
   styleCards?: StyleCard[]
   mood?: MoodState
@@ -142,8 +145,31 @@ function renderStyleCards(cards: StyleCard[]): string {
   return `[아래 대화 예시처럼 말해. 똑같이 따라하지 말고 톤과 리듬만 참고:]\n${sections.join('\n\n')}`
 }
 
+function renderOtherRelationshipMemories(
+  relationships: CloneRelationship[],
+  limit: number,
+): string {
+  if (relationships.length === 0 || limit <= 0) return ''
+
+  const lines = ['[다른 사람들과의 대화 기억]']
+
+  for (const rel of relationships) {
+    if (lines.length > limit + 1) break
+    const sorted = [...rel.memories].sort((a, b) =>
+      b.occurred_at.localeCompare(a.occurred_at)
+    )
+    const picked = sorted.slice(0, limit)
+    for (const m of picked) {
+      if (lines.length > limit + 1) break
+      lines.push(`- ${m.detail} (${m.occurred_at})`)
+    }
+  }
+
+  return lines.join('\n')
+}
+
 export function buildEnhancedSystemPrompt(input: EnhancedPromptInput): string {
-  const { persona, memories, inferredTraits, relationshipMemory, textureRules, styleCards, mood, worldSnippet, partnerContext } = input
+  const { persona, memories, inferredTraits, relationshipMemory, otherRelationshipMemories, otherMemoryLimit, textureRules, styleCards, mood, worldSnippet, partnerContext } = input
 
   const parts: string[] = []
 
@@ -166,11 +192,21 @@ export function buildEnhancedSystemPrompt(input: EnhancedPromptInput): string {
     if (rendered) parts.push(rendered)
   }
 
-  // 4. Relationship memory
+  // 4. Relationship memory (대상 클론)
   if (relationshipMemory) {
     const rendered = renderRelationshipMemory(
       relationshipMemory.relationship,
       relationshipMemory.partnerName,
+      relationshipMemory.limit,
+    )
+    if (rendered) parts.push(rendered)
+  }
+
+  // 4-b. Other relationship memories (다른 클론들)
+  if (otherRelationshipMemories && otherRelationshipMemories.length > 0) {
+    const rendered = renderOtherRelationshipMemories(
+      otherRelationshipMemories,
+      otherMemoryLimit ?? 0,
     )
     if (rendered) parts.push(rendered)
   }

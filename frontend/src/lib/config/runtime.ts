@@ -23,8 +23,14 @@ export interface RuntimeConfig {
   maxTurns: number
   maxOutputTokens: number
   relationshipMemoryEnabled: boolean
-  /** 관계 기억을 대화 시 system prompt에 주입할지 여부 */
-  relationshipMemoryInjection: boolean
+  /** 대상 클론(A↔B) 기억 주입 */
+  pairMemoryInjection: boolean
+  /** 다른 클론(A↔C, A↔D...) 기억 주입 */
+  otherMemoryInjection: boolean
+  /** 대상 클론 기억 최대 개수 */
+  pairMemoryInjectionLimit: number
+  /** 다른 클론 기억 최대 개수 */
+  otherMemoryInjectionLimit: number
 }
 
 /** 코드 상수 기반 fallback (DB 조회 실패 시) */
@@ -35,7 +41,10 @@ function fallbackConfig(): RuntimeConfig {
     maxTurns: INTERACTION_DEFAULTS.MAX_TURNS,
     maxOutputTokens: CLAUDE_LIMITS.MAX_OUTPUT_TOKENS_INTERACTION,
     relationshipMemoryEnabled: FEATURE_FLAGS.ENABLE_RELATIONSHIP_MEMORY,
-    relationshipMemoryInjection: true,
+    pairMemoryInjection: true,
+    otherMemoryInjection: false,
+    pairMemoryInjectionLimit: 20,
+    otherMemoryInjectionLimit: 0,
   }
 }
 
@@ -49,7 +58,7 @@ export async function getRuntimeConfig(): Promise<RuntimeConfig> {
     const { data, error } = await service
       .from('platform_config')
       .select('key, value')
-      .in('key', ['interaction_mode', 'relationship_memory_enabled', 'relationship_memory_injection'])
+      .in('key', ['interaction_mode', 'relationship_memory_enabled', 'pair_memory_injection', 'other_memory_injection', 'pair_memory_injection_limit', 'other_memory_injection_limit'])
 
     if (error || !data) {
       console.warn('[runtime-config] DB fetch failed, using fallback:', error?.message)
@@ -67,9 +76,17 @@ export async function getRuntimeConfig(): Promise<RuntimeConfig> {
     const relationshipMemoryEnabled =
       typeof relMemRaw === 'boolean' ? relMemRaw : true
 
-    const relInjRaw = configMap.get('relationship_memory_injection')
-    const relationshipMemoryInjection =
-      typeof relInjRaw === 'boolean' ? relInjRaw : true
+    const pairInjRaw = configMap.get('pair_memory_injection')
+    const pairMemoryInjection = typeof pairInjRaw === 'boolean' ? pairInjRaw : true
+
+    const otherInjRaw = configMap.get('other_memory_injection')
+    const otherMemoryInjection = typeof otherInjRaw === 'boolean' ? otherInjRaw : false
+
+    const pairLimitRaw = configMap.get('pair_memory_injection_limit')
+    const pairMemoryInjectionLimit = typeof pairLimitRaw === 'number' ? pairLimitRaw : 20
+
+    const otherLimitRaw = configMap.get('other_memory_injection_limit')
+    const otherMemoryInjectionLimit = typeof otherLimitRaw === 'number' ? otherLimitRaw : 0
 
     return {
       interactionMode: mode,
@@ -77,7 +94,10 @@ export async function getRuntimeConfig(): Promise<RuntimeConfig> {
       maxTurns: preset.maxTurns,
       maxOutputTokens: preset.maxOutputTokens,
       relationshipMemoryEnabled,
-      relationshipMemoryInjection,
+      pairMemoryInjection,
+      otherMemoryInjection,
+      pairMemoryInjectionLimit,
+      otherMemoryInjectionLimit,
     }
   } catch (err) {
     console.warn('[runtime-config] Unexpected error, using fallback:', err)

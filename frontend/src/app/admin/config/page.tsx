@@ -4,12 +4,16 @@ import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { INTERACTION_PRESETS, type InteractionMode } from '@/lib/config/runtime'
 
 interface ConfigState {
   interactionMode: InteractionMode
   relationshipMemoryEnabled: boolean
-  relationshipMemoryInjection: boolean
+  pairMemoryInjection: boolean
+  otherMemoryInjection: boolean
+  pairMemoryInjectionLimit: number
+  otherMemoryInjectionLimit: number
 }
 
 const MODE_LABELS: Record<InteractionMode, string> = {
@@ -83,7 +87,6 @@ export default function AdminConfigPage() {
 
   const mode = config!.interactionMode
   const preset = INTERACTION_PRESETS[mode]
-  const otherMode: InteractionMode = mode === 'economy' ? 'normal' : 'economy'
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
@@ -151,64 +154,127 @@ export default function AdminConfigPage() {
           <CardDescription>Interaction 종료 후 양방향 관계 기억 자동 추출</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-3">
-            <Button
-              variant={config!.relationshipMemoryEnabled ? 'default' : 'outline'}
-              size="sm"
-              disabled={saving || config!.relationshipMemoryEnabled}
-              onClick={() => updateConfig({ relationshipMemoryEnabled: true })}
-            >
-              ON
-            </Button>
-            <Button
-              variant={!config!.relationshipMemoryEnabled ? 'default' : 'outline'}
-              size="sm"
-              disabled={saving || !config!.relationshipMemoryEnabled}
-              onClick={() => updateConfig({ relationshipMemoryEnabled: false })}
-            >
-              OFF
-            </Button>
-          </div>
-          <p className="mt-3 text-sm text-muted-foreground">
-            {config!.relationshipMemoryEnabled
-              ? 'Interaction 완료 시 관계 기억이 자동 추출됩니다.'
-              : '관계 기억 추출이 비활성화되어 있습니다. 토큰을 절약합니다.'}
-          </p>
+          <ToggleButtons
+            value={config!.relationshipMemoryEnabled}
+            disabled={saving}
+            onToggle={(v) => updateConfig({ relationshipMemoryEnabled: v })}
+          />
         </CardContent>
       </Card>
 
-      {/* 대화 기억 주입 */}
-      <Card>
+      {/* 대상 클론 기억 주입 */}
+      <Card className="mb-4">
         <CardHeader>
-          <CardTitle className="text-lg">대화 기억 주입</CardTitle>
-          <CardDescription>과거 대화 기억을 Interaction 시 클론에게 주입</CardDescription>
+          <CardTitle className="text-lg">대상 클론 기억 주입</CardTitle>
+          <CardDescription>대화 상대(A↔B)의 과거 대화 기억을 주입</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-3">
-            <Button
-              variant={config!.relationshipMemoryInjection ? 'default' : 'outline'}
-              size="sm"
-              disabled={saving || config!.relationshipMemoryInjection}
-              onClick={() => updateConfig({ relationshipMemoryInjection: true })}
-            >
-              ON
-            </Button>
-            <Button
-              variant={!config!.relationshipMemoryInjection ? 'default' : 'outline'}
-              size="sm"
-              disabled={saving || !config!.relationshipMemoryInjection}
-              onClick={() => updateConfig({ relationshipMemoryInjection: false })}
-            >
-              OFF
-            </Button>
-          </div>
-          <p className="mt-3 text-sm text-muted-foreground">
-            {config!.relationshipMemoryInjection
-              ? '클론이 과거 대화 상대를 기억하고 대화합니다.'
-              : '매번 처음 만나는 것처럼 대화합니다. 기억은 DB에 유지됩니다.'}
-          </p>
+          <ToggleButtons
+            value={config!.pairMemoryInjection}
+            disabled={saving}
+            onToggle={(v) => updateConfig({ pairMemoryInjection: v })}
+          />
+          <LimitInput
+            label="최대 개수"
+            value={config!.pairMemoryInjectionLimit}
+            disabled={saving}
+            onSave={(v) => updateConfig({ pairMemoryInjectionLimit: v })}
+          />
         </CardContent>
       </Card>
+
+      {/* 다른 클론 기억 주입 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">다른 클론 기억 주입</CardTitle>
+          <CardDescription>대화 상대 외 다른 클론들(A↔C, A↔D...)과의 기억도 주입</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ToggleButtons
+            value={config!.otherMemoryInjection}
+            disabled={saving}
+            onToggle={(v) => updateConfig({ otherMemoryInjection: v })}
+          />
+          <LimitInput
+            label="최대 개수"
+            value={config!.otherMemoryInjectionLimit}
+            disabled={saving}
+            onSave={(v) => updateConfig({ otherMemoryInjectionLimit: v })}
+          />
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+function ToggleButtons({
+  value,
+  disabled,
+  onToggle,
+}: {
+  value: boolean
+  disabled: boolean
+  onToggle: (v: boolean) => void
+}) {
+  return (
+    <div className="flex items-center gap-3">
+      <Button
+        variant={value ? 'default' : 'outline'}
+        size="sm"
+        disabled={disabled || value}
+        onClick={() => onToggle(true)}
+      >
+        ON
+      </Button>
+      <Button
+        variant={!value ? 'default' : 'outline'}
+        size="sm"
+        disabled={disabled || !value}
+        onClick={() => onToggle(false)}
+      >
+        OFF
+      </Button>
+    </div>
+  )
+}
+
+function LimitInput({
+  label,
+  value,
+  disabled,
+  onSave,
+}: {
+  label: string
+  value: number
+  disabled: boolean
+  onSave: (v: number) => void
+}) {
+  const [draft, setDraft] = useState(String(value))
+
+  useEffect(() => {
+    setDraft(String(value))
+  }, [value])
+
+  function handleSave() {
+    const num = parseInt(draft, 10)
+    if (!isNaN(num) && num >= 0 && num !== value) {
+      onSave(num)
+    }
+  }
+
+  return (
+    <div className="mt-3 flex items-center gap-2">
+      <span className="text-sm text-muted-foreground">{label}:</span>
+      <Input
+        type="number"
+        min={0}
+        className="w-20"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        disabled={disabled}
+        onBlur={handleSave}
+        onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+      />
     </div>
   )
 }

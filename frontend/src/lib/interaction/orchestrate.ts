@@ -56,7 +56,7 @@ export async function prepareClonePrompts(
   memoriesByClone: Map<string, CloneMemory[]>,
   interactionId: string,
   date: string,
-  runtimeConfig?: Pick<RuntimeConfig, 'relationshipMemoryEnabled' | 'relationshipMemoryInjection'>,
+  runtimeConfig?: Pick<RuntimeConfig, 'relationshipMemoryEnabled' | 'pairMemoryInjection' | 'otherMemoryInjection' | 'pairMemoryInjectionLimit' | 'otherMemoryInjectionLimit'>,
 ): Promise<Map<string, ClonePromptContext>> {
   // 1. Load world context (shared across all clones in this interaction)
   const worldRows = await fetchWorldContextRows(date)
@@ -64,10 +64,15 @@ export async function prepareClonePrompts(
   const allStyleCards = getAllStyleCards()
   const result = new Map<string, ClonePromptContext>()
 
-  // 0. Load relationship memories (if injection enabled)
-  const relationshipMap = new Map<string, CloneRelationship>()
-  const relInjEnabled = runtimeConfig?.relationshipMemoryInjection ?? true
-  if (relInjEnabled && participants.length === 2) {
+  // 0. Load relationship memories
+  const pairInjEnabled = runtimeConfig?.pairMemoryInjection ?? true
+  const otherInjEnabled = runtimeConfig?.otherMemoryInjection ?? false
+  const pairLimit = runtimeConfig?.pairMemoryInjectionLimit ?? 20
+  const otherLimit = runtimeConfig?.otherMemoryInjectionLimit ?? 0
+
+  // 0-a. Pair memory (A↔B)
+  const pairRelationshipMap = new Map<string, CloneRelationship>()
+  if (pairInjEnabled && participants.length === 2) {
     const adminRel = createServiceClient()
     const [a, b] = participants
     const { data: relRows } = await adminRel
@@ -75,7 +80,24 @@ export async function prepareClonePrompts(
       .select('*')
       .or(`and(clone_id.eq.${a.id},target_clone_id.eq.${b.id}),and(clone_id.eq.${b.id},target_clone_id.eq.${a.id})`)
     for (const row of (relRows ?? []) as CloneRelationship[]) {
-      relationshipMap.set(`${row.clone_id}→${row.target_clone_id}`, row)
+      pairRelationshipMap.set(`${row.clone_id}→${row.target_clone_id}`, row)
+    }
+  }
+
+  // 0-b. Other memories (A↔C, A↔D, ...)
+  const otherRelationshipsMap = new Map<string, CloneRelationship[]>()
+  if (otherInjEnabled && otherLimit > 0 && participants.length === 2) {
+    const adminRel = createServiceClient()
+    const participantIds = participants.map((p) => p.id)
+    for (const clone of participants) {
+      const otherId = participantIds.find((id) => id !== clone.id)!
+      const { data: otherRows } = await adminRel
+        .from('clone_relationships')
+        .select('*')
+        .eq('clone_id', clone.id)
+        .neq('target_clone_id', otherId)
+        .order('updated_at', { ascending: false })
+      otherRelationshipsMap.set(clone.id, (otherRows ?? []) as CloneRelationship[])
     }
   }
 
@@ -106,7 +128,7 @@ export async function prepareClonePrompts(
     // 5. Build enhanced system prompt
     const otherClone = participants.find((p) => p.id !== clone.id)
     const relKey = otherClone ? `${clone.id}→${otherClone.id}` : null
-    const relationship = relKey ? relationshipMap.get(relKey) ?? null : null
+    const pairRelationship = relKey ? pairRelationshipMap.get(relKey) ?? null : null
 
     // 상대방 핵심 정보 추출 (역할 혼동 방지)
     const partnerHighlights = otherClone
@@ -121,9 +143,13 @@ export async function prepareClonePrompts(
       persona,
       memories,
       inferredTraits: clone.inferred_traits ?? null,
-      relationshipMemory: relationship && otherClone
-        ? { relationship, partnerName: otherClone.name }
+      relationshipMemory: pairRelationship && otherClone
+        ? { relationship: pairRelationship, partnerName: otherClone.name, limit: pairLimit }
         : null,
+      otherRelationshipMemories: otherInjEnabled
+        ? (otherRelationshipsMap.get(clone.id) ?? []).slice(0, 10)
+        : undefined,
+      otherMemoryLimit: otherLimit,
       textureRules: TEXTURE_RULES,
       styleCards,
       mood,
