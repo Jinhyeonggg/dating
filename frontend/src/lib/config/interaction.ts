@@ -1,3 +1,5 @@
+import type { SpeechRegister } from '@/types/relationship'
+
 export const REALISM_DEFAULTS = {
   STYLE_CARD_TOP_K: 2,
   WORLD_CONTEXT_TOP_N: 5,
@@ -59,4 +61,23 @@ export function getRelationshipStage(interactionCount: number): { id: Relationsh
   return stage
     ? { id: stage.id, label: stage.label }
     : { id: 'first-meeting', label: '처음 만나는 사이' }
+}
+
+export const SPEECH_REGISTERS = ['formal', 'casual', 'banmal-ready'] as const
+
+/**
+ * 나이 차이 + interaction_count 기반으로 말투 초기값 결정. deterministic.
+ */
+export function getSpeechRegister(
+  selfAge: number | null,
+  partnerAge: number | null,
+  interactionCount: number,
+): SpeechRegister {
+  if (selfAge !== null && partnerAge !== null) {
+    const diff = Math.abs(selfAge - partnerAge)
+    if (diff >= 5) return 'formal'
+    if (interactionCount >= 3) return 'casual'
+    return 'banmal-ready'
+  }
+  return 'banmal-ready'
 }
